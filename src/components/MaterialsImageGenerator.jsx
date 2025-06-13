@@ -8,135 +8,141 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import DeleteIcon from '@mui/icons-material/Delete';
 
 const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTitle, imageSubtitle }) => {
-    const [materialsFile, setMaterialsFile] = useState(null);
-    const [entities, setEntities] = useState([]);
-    const [itemsMap, setItemsMap] = useState(new Map());
-    const [entitiesMap, setEntitiesMap] = useState(new Map());
-    const [showEntitiesSelector, setShowEntitiesSelector] = useState(false);
-    const [selectedEntities, setSelectedEntities] = useState([]); // Ahora guardará { entity, quantity }
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [previewImages, setPreviewImages] = useState([]);
+  const [materialsFile, setMaterialsFile] = useState(null);
+  const [entities, setEntities] = useState([]);
+  const [itemsMap, setItemsMap] = useState(new Map());
+  const [entitiesMap, setEntitiesMap] = useState(new Map());
+  const [showEntitiesSelector, setShowEntitiesSelector] = useState(false);
+  const [selectedEntities, setSelectedEntities] = useState([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [previewImages, setPreviewImages] = useState([]);
 
-    useEffect(() => {
-        Papa.parse('/items_map.csv', { download: true, header: true, skipEmptyLines: true, complete: (result) => setItemsMap(new Map(result.data.map(item => [item.Name, item]))) });
-        Papa.parse('/entities_map.csv', { download: true, header: true, skipEmptyLines: true, complete: (result) => {
-            setEntities(result.data);
-            setEntitiesMap(new Map(result.data.map(ent => [ent['Registry name'], ent])));
-        }});
-    }, []);
-    
-    const onDrop = useCallback(acceptedFiles => {
-        if (acceptedFiles.length > 0) setMaterialsFile(acceptedFiles[0]);
-    }, []);
+  useEffect(() => {
+    Papa.parse('/items_map.csv', {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: (result) => setItemsMap(new Map(result.data.map(item => [item.Name, item])))
+    });
+    Papa.parse('/entities_map.csv', {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: (result) => {
+        setEntities(result.data);
+        setEntitiesMap(new Map(result.data.map(ent => [ent['Registry name'], ent])));
+      }
+    });
+  }, []);
 
-    const handleRemoveFile = (event) => {
-        event.stopPropagation();
-        setMaterialsFile(null);
-        setPreviewImages([]);
-    };
-    
-    const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: { 'text/csv': ['.csv'] } });
+  const onDrop = useCallback(acceptedFiles => {
+    if (acceptedFiles.length > 0) setMaterialsFile(acceptedFiles[0]);
+  }, []);
 
-    // Manejar cambio en la selección de entidades
-    const handleEntitySelectionChange = (event, newValue) => {
-        const newSelected = newValue.map(entity => {
-            const existing = selectedEntities.find(se => se.entity['Registry name'] === entity['Registry name']);
-            return existing ? existing : { entity: entity, quantity: 1 };
-        });
-        setSelectedEntities(newSelected);
-    };
+  const handleRemoveFile = (event) => {
+    event.stopPropagation();
+    setMaterialsFile(null);
+    setPreviewImages([]);
+  };
 
-    // Manejar cambio en la cantidad de una entidad
-    const handleEntityQuantityChange = (registryName, quantity) => {
-        setSelectedEntities(prev => 
-            prev.map(item => 
-                item.entity['Registry name'] === registryName 
-                ? { ...item, quantity: Math.max(1, Number(quantity)) } // Asegurar que la cantidad sea al menos 1
-                : item
-            )
+  const handleEntitySelectionChange = (event, newValue) => {
+  const newSelected = newValue.map(entity => {
+    const existing = selectedEntities.find(se => se.entity['Registry name'] === entity['Registry name']);
+    return existing ? existing : { entity: entity, quantity: 1 };
+  });
+  setSelectedEntities(newSelected);
+};
+
+const handleEntityQuantityChange = (registryName, quantity) => {
+  setSelectedEntities(prev =>
+    prev.map(item =>
+      item.entity['Registry name'] === registryName
+        ? { ...item, quantity: Math.max(1, Number(quantity)) }
+        : item
+    )
+  );
+};
+
+const { getRootProps, getInputProps } = useDropzone({ onDrop, accept: { 'text/csv': ['.csv'] } });
+
+  const generateImage = async (isDownload = false) => {
+    if (!materialsFile) {
+      alert("Por favor, sube un archivo de materiales.");
+      return;
+    }
+    setIsGenerating(true);
+
+    try {
+      await document.fonts.load('900 10px Poppins');
+      await document.fonts.load('600 10px Poppins');
+      await document.fonts.load('500 10px Poppins');
+    } catch (err) {
+      console.warn('No se pudo cargar la fuente Poppins', err);
+    }
+
+    const materialsText = await materialsFile.text();
+    const parsedMaterials = Papa.parse(materialsText, { header: true, skipEmptyLines: true }).data;
+
+    let combinedList = parsedMaterials
+      .filter(row => row.Item && row.Item.trim() !== '')
+      .map(mat => ({ ...mat, type: 'item' }));
+
+    if (showEntitiesSelector) {
+      const entityData = selectedEntities.map(sel => ({
+        Item: sel.entity['Registry name'],
+        Total: sel.quantity,
+        type: 'entity'
+      }));
+      combinedList.push(...entityData);
+    }
+
+    combinedList.push({
+      Item: 'Bloques temporales',
+      Total: 64,
+      type: 'custom',
+      imagePath: '/items/dirt.png'
+    });
+
+    const ITEMS_PER_PAGE = 18;
+    const pages = [];
+    for (let i = 0; i < combinedList.length; i += ITEMS_PER_PAGE) {
+      pages.push(combinedList.slice(i, i + ITEMS_PER_PAGE));
+    }
+
+    const generatedImages = [];
+    for (let i = 0; i < pages.length; i++) {
+      const canvas = await drawSingleImage(pages[i], i + 1, pages.length, isDownload);
+      generatedImages.push(canvas);
+    }
+
+    if (isDownload) {
+      if (generatedImages.length === 1) {
+        const link = document.createElement('a');
+        link.download = 'lista_de_materiales.png';
+        link.href = generatedImages[0].toDataURL('image/png');
+        link.click();
+      } else {
+        const zip = new JSZip();
+        const imagePromises = generatedImages.map((canvas, index) =>
+          new Promise(resolve => canvas.toBlob(blob => {
+            zip.file(`materiales_p${index + 1}.png`, blob);
+            resolve();
+          }))
         );
-    };
+        await Promise.all(imagePromises);
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        const link = document.createElement('a');
+        link.download = 'lista_de_materiales.zip';
+        link.href = URL.createObjectURL(zipBlob);
+        link.click();
+      }
+    }
 
-    const generateImage = async (isDownload = false) => {
-        if (!materialsFile) {
-            alert("Por favor, sube un archivo de materiales.");
-            return;
-        }
-        setIsGenerating(true);
-        setPreviewImages([]);
-
-        try {
-            await document.fonts.load('900 10px Poppins');
-            await document.fonts.load('600 10px Poppins');
-            await document.fonts.load('500 10px Poppins');
-        } catch (err) {
-            console.warn('No se pudo cargar la fuente Poppins', err);
-        }
-
-        const materialsText = await materialsFile.text();
-        const parsedMaterials = Papa.parse(materialsText, { header: true, skipEmptyLines: true }).data;
-        
-        let combinedList = parsedMaterials
-            .filter(row => row.Item && row.Item.trim() !== '')
-            .map(mat => ({...mat, type: 'item'}));
-        
-        if (showEntitiesSelector) {
-            const entityData = selectedEntities.map(sel => ({ 
-                Item: sel.entity['Registry name'], 
-                Total: sel.quantity, 
-                type: 'entity' 
-            }));
-            combinedList.push(...entityData);
-        }
-
-        combinedList.push({ 
-            Item: 'Bloques temporales',
-            Total: 64, 
-            type: 'custom',
-            imagePath: '/items/dirt.png'
-        });
+    setPreviewImages(generatedImages.map(canvas => canvas.toDataURL('image/png')));
+    setIsGenerating(false);
+  };
 
 
-        const ITEMS_PER_PAGE = 18;
-        const pages = [];
-        for (let i = 0; i < combinedList.length; i += ITEMS_PER_PAGE) {
-            pages.push(combinedList.slice(i, i + ITEMS_PER_PAGE));
-        }
-
-        const generatedImages = [];
-        for (let i = 0; i < pages.length; i++) {
-            const canvas = await drawSingleImage(pages[i], i + 1, pages.length, isDownload);
-            generatedImages.push(canvas);
-        }
-
-        if (isDownload) {
-            if (generatedImages.length === 1) {
-                const link = document.createElement('a');
-                link.download = 'lista_de_materiales.png';
-                link.href = generatedImages[0].toDataURL('image/png');
-                link.click();
-            } else {
-                const zip = new JSZip();
-                const imagePromises = generatedImages.map((canvas, index) => 
-                    new Promise(resolve => canvas.toBlob(blob => {
-                        zip.file(`materiales_p${index + 1}.png`, blob);
-                        resolve();
-                    }))
-                );
-                await Promise.all(imagePromises);
-                const zipBlob = await zip.generateAsync({ type: 'blob' });
-                const link = document.createElement('a');
-                link.download = 'lista_de_materiales.zip';
-                link.href = URL.createObjectURL(zipBlob);
-                link.click();
-            }
-        } else {
-            setPreviewImages(generatedImages.map(canvas => canvas.toDataURL('image/png')));
-        }
-
-        setIsGenerating(false);
-    };
-    
     const drawSingleImage = async (pageItems, pageNum, totalPages, isDownload) => {
         const canvas = document.createElement('canvas');
         const [width, height] = (isDownload ? downloadResolution : '1280x720').split('x').map(Number);
@@ -144,7 +150,7 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
         canvas.height = height;
         const ctx = canvas.getContext('2d');
         const scale = canvas.width / 1920;
-        
+
         const loadImage = (src) => new Promise((resolve) => {
             const img = new Image();
             img.onload = () => resolve(img);
@@ -166,18 +172,18 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
         });
 
         const loadedImages = await Promise.all(imagePromises);
-        
+
         ctx.beginPath();
         ctx.roundRect(0, 0, canvas.width, canvas.height, [20 * scale]);
         ctx.clip();
         ctx.fillStyle = 'rgba(17, 17, 17, 0.95)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
+
         ctx.fillStyle = 'rgba(200, 200, 220, 0.9)';
         ctx.font = `900 ${90 * scale}px Poppins`;
         ctx.textAlign = 'center';
         ctx.fillText(imageTitle.toUpperCase(), canvas.width / 2, 160 * scale);
-        
+
         ctx.fillStyle = 'rgba(187, 187, 187, 0.8)';
         ctx.font = `600 ${35 * scale}px Poppins`;
         ctx.fillText(imageSubtitle.toUpperCase(), canvas.width / 2, 215 * scale);
@@ -211,7 +217,7 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
             ctx.fillStyle = '#ffffff';
             ctx.font = `600 ${35 * scale}px Poppins`;
             ctx.textAlign = 'left';
-            
+
             let name = "Desconocido";
             if (item.type === 'custom') {
                 name = item.Item;
@@ -226,7 +232,7 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
 
             const wrapText = (context, text, x, y, maxWidth, lineHeight) => {
                 const words = text.split(' '); let line = '';
-                for(let n = 0; n < words.length; n++) {
+                for (let n = 0; n < words.length; n++) {
                     const testLine = line + words[n] + ' ';
                     if (context.measureText(testLine).width > maxWidth && n > 0) {
                         context.fillText(line, x, y);
@@ -236,14 +242,14 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
                 }
                 context.fillText(line, x, y);
             };
-            wrapText(ctx, name, textX, y + (38*scale), textWidth, 38*scale);
-            
+            wrapText(ctx, name, textX, y + (38 * scale), textWidth, 38 * scale);
+
             // CORRECCIÓN: Ocultar cantidad para items de tipo 'custom'
             if (item.type !== 'custom') {
                 ctx.fillStyle = '#94A3B8';
                 ctx.font = `500 ${30 * scale}px Poppins`;
                 ctx.textAlign = 'right';
-                ctx.fillText(`x${item.Total}`, x + columnWidth - (itemPadding*1.5), y + itemBoxHeight - (10*scale));
+                ctx.fillText(`x${item.Total}`, x + columnWidth - (itemPadding * 1.5), y + itemBoxHeight - (10 * scale));
             }
         });
 
@@ -251,12 +257,12 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
         ctx.font = `500 ${22 * scale}px Poppins`;
         ctx.textAlign = 'left';
         ctx.fillText('youtube.com/@inordap', gridPadding, canvas.height - (30 * scale));
-        
+
         if (totalPages > 1) {
             ctx.textAlign = 'right';
             ctx.fillText(`${pageNum}/${totalPages}`, canvas.width - gridPadding, canvas.height - (30 * scale));
         }
-        
+
         return canvas;
     }
 
@@ -267,12 +273,12 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
                 <Box {...getRootProps()} sx={{ border: '2px dashed', borderColor: 'text.secondary', borderRadius: 2, p: 4, textAlign: 'center', cursor: 'pointer', my: 2 }}>
                     <input {...getInputProps()} />
                     {materialsFile ? (
-                        <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <CheckCircleOutlineIcon color="success" />
-                            <Typography sx={{ flexGrow: 1, textAlign: 'left', ml:1 }}>{materialsFile.name}</Typography>
+                            <Typography sx={{ flexGrow: 1, textAlign: 'left', ml: 1 }}>{materialsFile.name}</Typography>
                             <IconButton onClick={handleRemoveFile}><DeleteIcon /></IconButton>
                         </Box>
-                    ) : ( <UploadFileIcon sx={{ fontSize: 48, color: 'text.secondary' }} /> )}
+                    ) : (<UploadFileIcon sx={{ fontSize: 48, color: 'text.secondary' }} />)}
                 </Box>
             </Paper>
 
@@ -289,15 +295,15 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
                             onChange={handleEntitySelectionChange}
                             isOptionEqualToValue={(option, value) => option['Registry name'] === value['Registry name']}
                             renderInput={(params) => <TextField {...params} variant="outlined" label="Buscar y añadir entidades" />}
-                            sx={{mt: 2}}
+                            sx={{ mt: 2 }}
                         />
-                        <Box sx={{mt: 2, display: 'flex', flexDirection: 'column', gap: 1}}>
+                        <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1 }}>
                             {selectedEntities.map((item, index) => (
-                                <Box key={index} sx={{display: 'flex', alignItems: 'center', gap: 2}}>
-                                    <Typography sx={{flexGrow: 1}}>{item.entity.NameEsp || item.entity['Registry name']}</Typography>
-                                    <TextField 
-                                        type="number" 
-                                        label="Cantidad" 
+                                <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                    <Typography sx={{ flexGrow: 1 }}>{item.entity.NameEsp || item.entity['Registry name']}</Typography>
+                                    <TextField
+                                        type="number"
+                                        label="Cantidad"
                                         size="small"
                                         value={item.quantity}
                                         onChange={(e) => handleEntityQuantityChange(item.entity['Registry name'], e.target.value)}
@@ -309,20 +315,20 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
                     </Box>
                 )}
             </Paper>
-             <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent', mb: 2 }}>
+            <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent', mb: 2 }}>
                 <Typography variant="h6">3. Generar Imagen</Typography>
-                <Box sx={{display: 'flex', gap: 2, mt: 2}}>
+                <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
                     <Button variant="contained" onClick={() => generateImage(false)} disabled={isGenerating || !materialsFile}>
-                        {isGenerating ? <CircularProgress size={24}/> : 'Generar Vista Previa'}
+                        {isGenerating ? <CircularProgress size={24} /> : 'Generar Vista Previa'}
                     </Button>
                     <Button variant="outlined" onClick={() => generateImage(true)} disabled={previewImages.length === 0 || isGenerating}>Descargar</Button>
                 </Box>
-                 {previewImages.length > 0 && (
-                    <Box sx={{mt: 2, display: 'flex', gap: 2, overflowX: 'auto', p:1}}>
+                {previewImages.length > 0 && (
+                    <Box sx={{ mt: 2, display: 'flex', gap: 2, overflowX: 'auto', p: 1 }}>
                         {previewImages.map((imgSrc, index) => (
-                           <Box key={index} sx={{flexShrink: 0, width: '50%', aspectRatio: '16 / 9', bgcolor: 'action.hover', borderRadius: 1 }}>
-                               <img src={imgSrc} alt={`Vista previa ${index+1}`} style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '4px' }}/>
-                           </Box>
+                            <Box key={index} sx={{ flexShrink: 0, width: '50%', aspectRatio: '16 / 9', bgcolor: 'action.hover', borderRadius: 1 }}>
+                                <img src={imgSrc} alt={`Vista previa ${index + 1}`} style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '4px' }} />
+                            </Box>
                         ))}
                     </Box>
                 )}
