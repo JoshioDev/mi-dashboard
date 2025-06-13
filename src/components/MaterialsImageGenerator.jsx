@@ -4,7 +4,8 @@ import Papa from 'papaparse';
 import JSZip from 'jszip';
 import FileDropzone from './shared/FileDropzone';
 import EntitySelector from './shared/EntitySelector';
-import ErrorAlert from './shared/ErrorAlert'; // Nuevo import
+import ErrorAlert from './shared/ErrorAlert';
+import PreviewGallery from './shared/PreviewGallery'; // Nuevo import
 
 const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTitle, imageSubtitle }) => {
     const [materialsFile, setMaterialsFile] = useState(null);
@@ -305,15 +306,8 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
                         Descargar
                     </Button>
                 </Box>
-                {previewImages.length > 0 && (
-                    <Box sx={{ mt: 2, display: 'flex', gap: 2, overflowX: 'auto', p: 1 }}>
-                        {previewImages.map((imgSrc, index) => (
-                            <Box key={index} sx={{ flexShrink: 0, width: '50%', aspectRatio: '16 / 9', bgcolor: 'action.hover', borderRadius: 1 }}>
-                                <img src={imgSrc} alt={`Vista previa ${index + 1}`} style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '4px' }} />
-                            </Box>
-                        ))}
-                    </Box>
-                )}
+                {/* NUEVO: PreviewGallery reusable */}
+                <PreviewGallery images={previewImages} />
             </Paper>
         </Box>
     );
