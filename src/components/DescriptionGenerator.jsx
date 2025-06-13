@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Box, Typography, Button, CircularProgress, IconButton, Paper, TextField, Tooltip, FormGroup, FormControlLabel, Checkbox, Autocomplete, List, ListItem, ListItemText, Collapse } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
@@ -8,10 +8,19 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
-
-// --- Componente Alternativo para la Selección de Versiones (sin cambios) ---
 const VersionSelector = ({ versionsData, selected, onSelectionChange }) => {
     const [open, setOpen] = useState({});
+
+    useEffect(() => {
+        // Abrir automáticamente los paneles de las versiones seleccionadas
+        const initiallyOpen = {};
+        Object.keys(versionsData).forEach(parent => {
+            if (versionsData[parent].some(child => selected.includes(child))) {
+                initiallyOpen[parent] = true;
+            }
+        });
+        setOpen(initiallyOpen);
+    }, [selected, versionsData]);
 
     const handleParentClick = (parent) => {
         setOpen(prev => ({ ...prev, [parent]: !prev[parent] }));
@@ -20,7 +29,7 @@ const VersionSelector = ({ versionsData, selected, onSelectionChange }) => {
     const handleParentChange = (parent, children) => {
         const allChildrenSelected = children.every(child => selected.includes(child));
         let newSelected = [...selected];
-        
+
         if (allChildrenSelected) {
             newSelected = newSelected.filter(id => id !== parent && !children.includes(id));
         } else {
@@ -28,6 +37,7 @@ const VersionSelector = ({ versionsData, selected, onSelectionChange }) => {
             newSelected = [...new Set(newSelected)];
         }
         onSelectionChange(newSelected);
+        setOpen(prev => ({ ...prev, [parent]: true })); // Expandir al seleccionar
     };
 
     const handleChildChange = (child, parent, children) => {
@@ -37,7 +47,7 @@ const VersionSelector = ({ versionsData, selected, onSelectionChange }) => {
         } else {
             newSelected.push(child);
         }
-        
+
         const allChildrenSelectedAfterChange = children.every(c => newSelected.includes(c));
         if (allChildrenSelectedAfterChange && !newSelected.includes(parent)) {
             newSelected.push(parent);
@@ -51,7 +61,7 @@ const VersionSelector = ({ versionsData, selected, onSelectionChange }) => {
     return (
         <Paper variant="outlined" sx={{height: 200, overflowY: 'auto'}}>
             <List dense component="nav">
-                {Object.keys(versionsData).map(parent => {
+                {Object.keys(versionsData).sort((a, b) => b.localeCompare(a, undefined, { numeric: true })).map(parent => {
                     const children = versionsData[parent];
                     const allChildrenSelected = children.every(child => selected.includes(child));
                     const isIndeterminate = children.some(child => selected.includes(child)) && !allChildrenSelected;
@@ -92,9 +102,7 @@ const VersionSelector = ({ versionsData, selected, onSelectionChange }) => {
     );
 };
 
-
 const DescriptionGenerator = ({ buildingBlockId }) => {
-    // Estados existentes
     const [introText, setIntroText] = useState("En este video te muestro como construir una granja de Botellas Ominosas para obtener el efecto de Mal Presagio para Minecraft 1.21.");
     const [materialsFile, setMaterialsFile] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -104,33 +112,28 @@ const DescriptionGenerator = ({ buildingBlockId }) => {
     const [platforms, setPlatforms] = useState({ java: true, bedrock: false });
     const [creatorHistory, setCreatorHistory] = useState(['@Insanity21']);
     const [creator, setCreator] = useState('@Insanity21');
-
-    // CAMBIO: Estado para múltiples URLs de música
     const [musicUrls, setMusicUrls] = useState('');
 
-
     const versionsData = {
-        '1.17': ['1.17.1'],
-        '1.18': ['1.18.1', '1.18.2'],
-        '1.19': ['1.19.1', '1.19.2', '1.19.3', '1.19.4'],
-        '1.20': ['1.20.1', '1.20.2', '1.20.3', '1.20.4', '1.20.5', '1.20.6'],
-        '1.21': ['1.21.1', '1.21.2', '1.21.3', '1.21.4', '1.21.5']
+        '1.21': ['1.21.5', '1.21.4', '1.21.3', '1.21.2', '1.21.1'],
+        '1.20': ['1.20.6', '1.20.5', '1.20.4', '1.20.3', '1.20.2', '1.20.1'],
+        '1.19': ['1.19.4', '1.19.3', '1.19.2', '1.19.1'],
+        '1.18': ['1.18.2', '1.18.1'],
+        '1.17': ['1.17.1']
     };
-    
+
     const { getRootProps, getInputProps } = useDropzone({
         onDrop: (acceptedFiles) => setMaterialsFile(acceptedFiles[0]),
         accept: { 'text/csv': ['.csv'] }
     });
-    
-    // CAMBIO: Lógica de importación de música movida aquí
+
     const handleGenerateDescription = async () => {
         setIsProcessing(true);
-        setFinalDescription(''); // Limpiar descripción anterior
+        setFinalDescription('');
 
-        // --- 1. Obtener créditos de la música ---
         let musicSegment = '(Aquí irá la música)';
         const urlsArray = musicUrls.split('\n').filter(url => url.trim() !== '');
-        
+
         if (urlsArray.length > 0) {
             try {
                 const response = await fetch('http://localhost:5000/extract_music_credits', {
@@ -139,7 +142,7 @@ const DescriptionGenerator = ({ buildingBlockId }) => {
                     body: JSON.stringify({ videoUrls: urlsArray }),
                 });
                 const data = await response.json();
-                if (!response.ok) { throw new Error(data.error || 'Error del servidor'); }
+                if (!response.ok) throw new Error(data.error || 'Error del servidor');
                 musicSegment = data.musicSection;
             } catch (err) {
                 console.error("Error al obtener la música:", err);
@@ -147,7 +150,6 @@ const DescriptionGenerator = ({ buildingBlockId }) => {
             }
         }
 
-        // --- 2. Procesar lista de materiales ---
         let materialsListText = "(Sube un archivo para generar la lista de materiales)";
         if (materialsFile) {
             try {
@@ -168,21 +170,19 @@ const DescriptionGenerator = ({ buildingBlockId }) => {
                 materialsListText = "Error al generar la lista de materiales.";
             }
         }
-        
-        // --- 3. Ensamblar la descripción final ---
-        const majorVersions = Object.keys(versionsData).filter(parent => 
-            versionsData[parent].every(child => selectedVersions.includes(child))
-        );
-        const individualVersions = selectedVersions.filter(v => 
-            !majorVersions.some(p => versionsData[p].includes(v)) && !versionsData[v]
-        );
-        const formattedVersions = [...new Set([...majorVersions, ...individualVersions])].sort().join(' - ');
 
-        let platformText = "🎮 Plataforma:";
-        if (platforms.java) platformText += " Java ✅";
-        if (platforms.bedrock) platformText += (platforms.java ? " - " : " ") + "Bedrock ✅";
-        if (!platforms.java && !platforms.bedrock) platformText += " No especificado";
+        const majorVersions = Object.keys(versionsData).filter(parent => versionsData[parent].every(child => selectedVersions.includes(child)));
+        const individualVersions = selectedVersions.filter(v => !majorVersions.some(p => versionsData[p].includes(v)) && !versionsData[v]);
+        const formattedVersions = [...new Set([...majorVersions, ...individualVersions])].sort((a, b) => b.localeCompare(a, undefined, { numeric: true })).join(' - ');
 
+        let platformText = '🎮 Plataforma: ';
+        if (platforms.java) {
+            platformText += 'Java ✅ - Bedrock ❌';
+        } else if (platforms.bedrock) {
+            platformText += 'Java ❌ - Bedrock ✅';
+        } else {
+            platformText += 'No especificado';
+        }
 
         const final_text = `
 ${introText}
@@ -210,12 +210,9 @@ ${musicSegment}
 
 ____________________________________________________
         `.trim();
-        
+
         setFinalDescription(final_text);
-        
-        if (creator && !creatorHistory.includes(creator)) {
-            setCreatorHistory(prev => [creator, ...prev]);
-        }
+        if (creator && !creatorHistory.includes(creator)) setCreatorHistory(prev => [creator, ...prev]);
         setIsProcessing(false);
     };
 
@@ -228,6 +225,7 @@ ____________________________________________________
             console.error('Error al copiar al portapapeles', err);
         });
     };
+
 
     return (
         <Box>
@@ -252,42 +250,42 @@ ____________________________________________________
                 <Box {...getRootProps()} sx={{ border: '2px dashed', borderColor: 'text.secondary', borderRadius: 2, p: 4, textAlign: 'center', cursor: 'pointer', my: 1 }}>
                     <input {...getInputProps()} />
                     {materialsFile ? (
-                        <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <CheckCircleOutlineIcon color="success" />
                             <Typography>{materialsFile.name}</Typography>
                             <IconButton onClick={(e) => { e.stopPropagation(); setMaterialsFile(null); }}><DeleteIcon /></IconButton>
                         </Box>
                     ) : (
                         <Box>
-                             <UploadFileIcon sx={{ fontSize: 48, color: 'text.secondary' }} />
-                             <Typography color="text.secondary">Arrastra o haz clic para subir el .csv de materiales</Typography>
+                            <UploadFileIcon sx={{ fontSize: 48, color: 'text.secondary' }} />
+                            <Typography color="text.secondary">Arrastra o haz clic para subir el .csv de materiales</Typography>
                         </Box>
                     )}
                 </Box>
             </Paper>
-            
+
             {/* Parte 3: Sobre La Granja */}
             <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent', mb: 2 }}>
                 <Typography variant="h6">Sobre La Granja</Typography>
-                <Box sx={{display: 'flex', gap: 4, mt: 1}}>
-                    <Box sx={{width: '50%'}}>
+                <Box sx={{ display: 'flex', gap: 4, mt: 1 }}>
+                    <Box sx={{ width: '50%' }}>
                         <Typography variant="subtitle1" gutterBottom>Versiones Compatibles</Typography>
                         <VersionSelector versionsData={versionsData} selected={selectedVersions} onSelectionChange={setSelectedVersions} />
                     </Box>
-                    <Box sx={{width: '50%'}}>
-                         <Typography variant="subtitle1" gutterBottom>Plataforma</Typography>
-                         <FormGroup>
-                            <FormControlLabel control={<Checkbox checked={platforms.java} onChange={e => setPlatforms(p => ({...p, java: e.target.checked}))} />} label="Java" />
-                            <FormControlLabel control={<Checkbox checked={platforms.bedrock} onChange={e => setPlatforms(p => ({...p, bedrock: e.target.checked}))} />} label="Bedrock" />
-                         </FormGroup>
-                         <Autocomplete
+                    <Box sx={{ width: '50%' }}>
+                        <Typography variant="subtitle1" gutterBottom>Plataforma</Typography>
+                        <FormGroup>
+                            <FormControlLabel control={<Checkbox checked={platforms.java} onChange={e => setPlatforms(p => ({ ...p, java: e.target.checked }))} />} label="Java" />
+                            <FormControlLabel control={<Checkbox checked={platforms.bedrock} onChange={e => setPlatforms(p => ({ ...p, bedrock: e.target.checked }))} />} label="Bedrock" />
+                        </FormGroup>
+                        <Autocomplete
                             freeSolo
                             options={creatorHistory}
                             value={creator}
                             onChange={(e, newValue) => setCreator(newValue || '')}
                             onInputChange={(e, newInputValue) => setCreator(newInputValue)}
-                            renderInput={(params) => <TextField {...params} label="Creador Original" variant="outlined" sx={{mt: 2}} />}
-                         />
+                            renderInput={(params) => <TextField {...params} label="Creador Original" variant="outlined" sx={{ mt: 2 }} />}
+                        />
                     </Box>
                 </Box>
             </Paper>
@@ -295,7 +293,7 @@ ____________________________________________________
             {/* CAMBIO: Sección de Música actualizada */}
             <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent', mb: 2 }}>
                 <Typography variant="h6">Música</Typography>
-                 <Typography variant="body2" color="text.secondary" sx={{mb: 1}}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                     Pega una o más URLs de YouTube, una por línea.
                 </Typography>
                 <TextField
@@ -311,25 +309,25 @@ ____________________________________________________
             </Paper>
 
             {/* Botón y Resultado */}
-            <Button variant="contained" onClick={handleGenerateDescription} disabled={isProcessing} sx={{my: 2}}>
+            <Button variant="contained" onClick={handleGenerateDescription} disabled={isProcessing} sx={{ my: 2 }}>
                 {isProcessing ? <CircularProgress size={24} /> : "Generar Descripción"}
             </Button>
-            
+
             <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent', mb: 2 }}>
-                 <Box sx={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="h6">Resultado Final</Typography>
                     <Tooltip open={copyTooltipOpen} onClose={() => setCopyTooltipOpen(false)} title="¡Copiado!" placement="top">
                         <IconButton onClick={handleCopyToClipboard} disabled={!finalDescription}><ContentCopyIcon /></IconButton>
                     </Tooltip>
-                 </Box>
-                 <TextField
+                </Box>
+                <TextField
                     multiline
                     fullWidth
                     rows={15}
                     value={finalDescription}
                     variant="outlined"
                     InputProps={{ readOnly: true }}
-                    sx={{mt: 1}}
+                    sx={{ mt: 1 }}
                 />
             </Paper>
         </Box>
