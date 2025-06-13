@@ -30,22 +30,22 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import ModeNightOutlinedIcon from '@mui/icons-material/ModeNightOutlined';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
-import RocketLaunchIcon from '@mui/icons-material/RocketLaunch'; // <-- Icono para Express
+import RocketLaunchIcon from '@mui/icons-material/RocketLaunch';
 
-// Components - CORRECCIÓN: Usar rutas absolutas para resolver el error de compilación.
+// Components
 import DatapackGenerator from '/src/components/DatapackGenerator.jsx';
 import MaterialsImageGenerator from '/src/components/MaterialsImageGenerator.jsx';
 import Settings from '/src/components/Settings.jsx';
 import Placeholder from '/src/components/Placeholder.jsx';
 import TimestampsFormatter from '/src/components/TimestampsFormatter.jsx';
 import DescriptionGenerator from '/src/components/DescriptionGenerator.jsx';
-import ExpressGenerator from '/src/components/ExpressGenerator.jsx'; 
+import ExpressGenerator from '/src/components/ExpressGenerator.jsx';
 
 const expandedDrawerWidth = 260;
 const collapsedDrawerWidth = 88;
 
 export default function App() {
-  const [activeSection, setActiveSection] = useState('Express'); 
+  const [activeSection, setActiveSection] = useState('Express');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const [settings, setSettings] = useState(() => {
@@ -64,10 +64,10 @@ export default function App() {
       imageTitle: 'MATERIALES', imageSubtitle: 'La cantidad puede variar ligeramente',
     };
   });
-  
+
   const [mode, setMode] = useState(() => localStorage.getItem('app-theme-mode') || 'dark');
   const [snackbarOpen, setSnackbarOpen] = useState(false);
-  
+
   useEffect(() => { localStorage.setItem('app-theme-mode', mode); }, [mode]);
 
   const handleSidebarToggle = () => setIsSidebarOpen(!isSidebarOpen);
@@ -77,11 +77,11 @@ export default function App() {
     palette: {
       mode,
       ...(mode === 'dark' ? {
-          background: { default: '#0F172A', paper: '#1E293B' }, text: { primary: '#E2E8F0', secondary: '#94A3B8' },
-          primary: { main: '#EF4444' },
+        background: { default: '#0F172A', paper: '#1E293B' }, text: { primary: '#E2E8F0', secondary: '#94A3B8' },
+        primary: { main: '#EF4444' },
       } : {
-          background: { default: '#F1F5F9', paper: '#FFFFFF' }, text: { primary: '#0F172A', secondary: '#64748B' },
-          primary: { main: '#EF4444' },
+        background: { default: '#F1F5F9', paper: '#FFFFFF' }, text: { primary: '#0F172A', secondary: '#64748B' },
+        primary: { main: '#EF4444' },
       }),
     },
     typography: { fontFamily: "'Inter', sans-serif" },
@@ -98,26 +98,21 @@ export default function App() {
   }), [mode]);
 
   const menuItems = [
-    { text: 'Express', icon: <RocketLaunchIcon /> }, 
-    { text: 'Descripción', icon: <DescriptionIcon /> },
-    { text: 'Materiales', icon: <ConstructionIcon /> },
-    { text: 'Timestamps', icon: <AccessTimeIcon /> },
-    { text: 'Datapack', icon: <DataObjectIcon /> },
-    { text: 'Visualizador', icon: <VisibilityIcon /> },
     { text: 'Home', icon: <HomeIcon /> },
+    { text: 'Express', icon: <RocketLaunchIcon /> },
+    { text: 'Datapack', icon: <DataObjectIcon /> },
+    { text: 'Materiales', icon: <ConstructionIcon /> },
+    { text: 'Descripción', icon: <DescriptionIcon /> },
+    { text: 'Timestamps', icon: <AccessTimeIcon /> },
+    { text: 'Visualizador', icon: <VisibilityIcon /> },
   ];
-  
+
   const settingsMenuItem = { text: 'Configuracion', icon: <SettingsIcon /> };
 
   const sectionContent = {
     Home: <Placeholder title="Home" />,
     Express: <ExpressGenerator settings={settings} />, 
-    Materiales: <MaterialsImageGenerator 
-                    buildingBlockId={settings.buildingBlockId} 
-                    downloadResolution={settings.downloadResolution} 
-                    imageTitle={settings.imageTitle}
-                    imageSubtitle={settings.imageSubtitle}
-                />,
+    Materiales: <MaterialsImageGenerator {...settings} />,
     Datapack: <DatapackGenerator packFormat={settings.packFormat} />,
     Descripción: <DescriptionGenerator buildingBlockId={settings.buildingBlockId} />,
     Timestamps: <TimestampsFormatter />,
@@ -150,11 +145,16 @@ export default function App() {
       </List>
       <Box>
         <List>
-           <ListItem disablePadding><ListItemButton onClick={() => setActiveSection(settingsMenuItem.text)} selected={activeSection === settingsMenuItem.text}><ListItemIcon sx={{color:'inherit'}}>{settingsMenuItem.icon}</ListItemIcon><ListItemText primary={settingsMenuItem.text} sx={{ opacity: isSidebarOpen ? 1 : 0 }}/></ListItemButton></ListItem>
-            <ListItem sx={{ display: 'flex', justifyContent: isSidebarOpen ? 'space-between' : 'center' }}>
-                {isSidebarOpen && <><ListItemIcon sx={{ color: 'text.secondary' }}><ModeNightOutlinedIcon /></ListItemIcon><ListItemText primary="Modo Oscuro" /></>}
-                <Switch edge={isSidebarOpen ? "end" : false} checked={mode === 'dark'} onChange={toggleColorMode} />
-            </ListItem>
+          <ListItem disablePadding>
+            <ListItemButton onClick={() => setActiveSection(settingsMenuItem.text)} selected={activeSection === settingsMenuItem.text}>
+              <ListItemIcon sx={{ color: 'inherit' }}>{settingsMenuItem.icon}</ListItemIcon>
+              <ListItemText primary={settingsMenuItem.text} sx={{ opacity: isSidebarOpen ? 1 : 0 }} />
+            </ListItemButton>
+          </ListItem>
+          <ListItem sx={{ display: 'flex', justifyContent: isSidebarOpen ? 'space-between' : 'center' }}>
+            {isSidebarOpen && <><ListItemIcon sx={{ color: 'text.secondary' }}><ModeNightOutlinedIcon /></ListItemIcon><ListItemText primary="Modo Oscuro" /></>}
+            <Switch edge={isSidebarOpen ? 'end' : false} checked={mode === 'dark'} onChange={toggleColorMode} />
+          </ListItem>
         </List>
       </Box>
     </Box>
@@ -164,15 +164,38 @@ export default function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Box sx={{ display: 'flex' }}>
-        <Drawer variant="permanent" anchor="left" sx={{ width: isSidebarOpen ? expandedDrawerWidth : collapsedDrawerWidth, transition: (t) => t.transitions.create('width'), flexShrink: 0, '& .MuiDrawer-paper': { width: isSidebarOpen ? expandedDrawerWidth : collapsedDrawerWidth, transition: (t) => t.transitions.create('width'), overflowX: 'hidden', borderRight: 'none' }, }}>
+        <Drawer
+          variant="permanent"
+          anchor="left"
+          sx={{
+            width: isSidebarOpen ? expandedDrawerWidth : collapsedDrawerWidth,
+            transition: (t) => t.transitions.create('width'),
+            flexShrink: 0,
+            '& .MuiDrawer-paper': {
+              width: isSidebarOpen ? expandedDrawerWidth : collapsedDrawerWidth,
+              transition: (t) => t.transitions.create('width'),
+              overflowX: 'hidden',
+              borderRight: 'none'
+            },
+          }}
+        >
           {drawerContent}
         </Drawer>
         <Box component="main" sx={{ flexGrow: 1, p: 4 }}>
-          <Typography variant="h4" gutterBottom fontWeight="bold">{activeSection}</Typography>
-           {sectionContent[activeSection]}
+          <Typography variant="h4" gutterBottom fontWeight="bold">
+            {activeSection}
+          </Typography>
+          {sectionContent[activeSection]}
         </Box>
-        <Snackbar open={snackbarOpen} autoHideDuration={4000} onClose={() => setSnackbarOpen(false)} anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}>
-          <Alert onClose={() => setSnackbarOpen(false)} severity="success" sx={{ width: '100%' }}>¡Configuración guardada correctamente!</Alert>
+        <Snackbar
+          open={snackbarOpen}
+          autoHideDuration={4000}
+          onClose={() => setSnackbarOpen(false)}
+          anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        >
+          <Alert onClose={() => setSnackbarOpen(false)} severity="success" sx={{ width: '100%' }}>
+            ¡Configuración guardada correctamente!
+          </Alert>
         </Snackbar>
       </Box>
     </ThemeProvider>
