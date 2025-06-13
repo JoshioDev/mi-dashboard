@@ -5,7 +5,8 @@ import FileDropzone from './shared/FileDropzone';
 import EntitySelector from './shared/EntitySelector';
 import ErrorAlert from './shared/ErrorAlert';
 import PreviewGallery from './shared/PreviewGallery';
-import useCSVMap from '../hooks/useCSVMap'; // Nuevo import
+import useCSVMap from '../hooks/useCSVMap';
+import { useSnackbar } from '../hooks/useSnackbar'; // Importa el hook
 
 const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTitle, imageSubtitle }) => {
     // Usar el custom hook para cargar items y entidades
@@ -14,10 +15,12 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
 
     const [materialsFile, setMaterialsFile] = useState(null);
     const [showEntitiesSelector, setShowEntitiesSelector] = useState(false);
-    const [selectedEntities, setSelectedEntities] = useState([]); // { entity, quantity }
+    const [selectedEntities, setSelectedEntities] = useState([]);
     const [isGenerating, setIsGenerating] = useState(false);
     const [previewImages, setPreviewImages] = useState([]);
     const [errorMsg, setErrorMsg] = useState(null);
+
+    const { showSnackbar } = useSnackbar(); // Inicializa el hook
 
     // Manejo de errores de carga de CSVs
     useEffect(() => {
@@ -30,6 +33,7 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
         setErrorMsg(null);
         if (!materialsFile) {
             setErrorMsg("Por favor, sube un archivo de materiales.");
+            showSnackbar("Por favor, sube un archivo de materiales.", "error");
             return;
         }
         setIsGenerating(true);
@@ -40,6 +44,7 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
                 await document.fonts.load('600 10px Poppins');
                 await document.fonts.load('500 10px Poppins');
             } catch (err) {}
+
             const materialsText = await materialsFile.text();
             // CSV de materiales a array de objetos
             const lines = materialsText.split('\n');
@@ -53,6 +58,7 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
 
             if (!data || !Array.isArray(data) || data.length === 0) {
                 setErrorMsg("El archivo de materiales está vacío o mal formateado.");
+                showSnackbar("El archivo de materiales está vacío o mal formateado.", "error");
                 setIsGenerating(false);
                 return;
             }
@@ -87,6 +93,7 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
                     generatedImages.push(canvas);
                 } catch (err) {
                     setErrorMsg("Error al generar la imagen de materiales. Verifica que los datos sean válidos.");
+                    showSnackbar("Error al generar la imagen de materiales.", "error");
                     console.error(err);
                     break;
                 }
@@ -95,6 +102,7 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
             if (isDownload) {
                 if (generatedImages.length === 0) {
                     setErrorMsg("No se pudo generar ninguna imagen para descargar.");
+                    showSnackbar("No se pudo generar ninguna imagen para descargar.", "error");
                     setIsGenerating(false);
                     return;
                 }
@@ -103,6 +111,7 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
                     link.download = 'lista_de_materiales.png';
                     link.href = generatedImages[0].toDataURL('image/png');
                     link.click();
+                    showSnackbar("¡Imagen descargada correctamente!", "success");
                 } else {
                     const zip = new JSZip();
                     const imagePromises = generatedImages.map((canvas, index) =>
@@ -117,12 +126,15 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
                     link.download = 'lista_de_materiales.zip';
                     link.href = URL.createObjectURL(zipBlob);
                     link.click();
+                    showSnackbar("¡Imágenes descargadas correctamente!", "success");
                 }
             } else {
                 setPreviewImages(generatedImages.map(canvas => canvas.toDataURL('image/png')));
+                showSnackbar("¡Vista previa generada con éxito!", "success");
             }
         } catch (error) {
             setErrorMsg("Error inesperado al procesar la imagen: " + error.message);
+            showSnackbar("Error inesperado al procesar la imagen.", "error");
             console.error(error);
         } finally {
             setIsGenerating(false);
