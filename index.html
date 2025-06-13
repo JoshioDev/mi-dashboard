@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Herramientas para Video</title>
+
+    <!-- Scripts de Pyodide, PapaParse y JSZip -->
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.25.1/full/pyodide.js"></script>
+    <!-- CORRECCIÓN: Se cambió 'xintegrity' a 'integrity' para que los scripts carguen -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" xintegrity="sha512-dfHAFazolYChiJSfOJOWo2IAmLcs3A5LAlCsvShAyrLPaFotCmyS8ADIDoMVAF6iG2FqVbbGTgC4HdcKMy4ESA==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" xintegrity="sha512-XMVd28F1oH5e71fWbV7nAUadRqJwX8IlL48iMWFNKa56PAHU8GUGRiyqgAU9eDXX4Gvf2P2IIM+hALE7oD1l2A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <!-- Fuentes de Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Poppins:wght@500;600;900&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
