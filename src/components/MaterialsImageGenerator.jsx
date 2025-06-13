@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Button, CircularProgress, Paper, Switch, FormControlLabel, Alert } from '@mui/material';
+import { Box, Typography, Button, CircularProgress, Paper, Switch, FormControlLabel } from '@mui/material';
 import Papa from 'papaparse';
 import JSZip from 'jszip';
 import FileDropzone from './shared/FileDropzone';
-import EntitySelector from './shared/EntitySelector'; // Importamos el selector reusable
+import EntitySelector from './shared/EntitySelector';
+import ErrorAlert from './shared/ErrorAlert'; // Nuevo import
 
 const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTitle, imageSubtitle }) => {
     const [materialsFile, setMaterialsFile] = useState(null);
@@ -268,11 +269,8 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
 
     return (
         <Box>
-            {errorMsg && (
-                <Alert severity="error" sx={{ mb: 2 }}>
-                    {errorMsg}
-                </Alert>
-            )}
+            <ErrorAlert message={errorMsg} onClose={() => setErrorMsg(null)} />
+
             {/* Paso 1: Cargar archivo de materiales */}
             <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent', mb: 2 }}>
                 <Typography variant="h6">1. Cargar Archivo</Typography>
