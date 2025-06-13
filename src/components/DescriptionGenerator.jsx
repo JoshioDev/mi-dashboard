@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Box, Typography, Button, CircularProgress, IconButton, Paper, TextField, Tooltip, FormGroup, FormControlLabel, Checkbox, Autocomplete, List, ListItem, ListItemText, Collapse } from '@mui/material';
+import { Box, Typography, Button, CircularProgress, IconButton, Paper, TextField, Tooltip, FormGroup, FormControlLabel, Checkbox, Autocomplete, List, ListItem, ListItemText, Collapse, Alert } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { useDropzone } from 'react-dropzone';
@@ -8,11 +8,12 @@ import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
+// Selector de versiones mejorado: subversiones en orden ascendente
 const VersionSelector = ({ versionsData, selected, onSelectionChange }) => {
     const [open, setOpen] = useState({});
 
     useEffect(() => {
-        // Abrir automáticamente los paneles de las versiones seleccionadas
+        // Abre automáticamente los grupos con subversiones seleccionadas
         const initiallyOpen = {};
         Object.keys(versionsData).forEach(parent => {
             if (versionsData[parent].some(child => selected.includes(child))) {
@@ -37,7 +38,7 @@ const VersionSelector = ({ versionsData, selected, onSelectionChange }) => {
             newSelected = [...new Set(newSelected)];
         }
         onSelectionChange(newSelected);
-        setOpen(prev => ({ ...prev, [parent]: true })); // Expandir al seleccionar
+        setOpen(prev => ({ ...prev, [parent]: true }));
     };
 
     const handleChildChange = (child, parent, children) => {
@@ -58,11 +59,16 @@ const VersionSelector = ({ versionsData, selected, onSelectionChange }) => {
         onSelectionChange([...new Set(newSelected)]);
     };
 
+    if (!versionsData || typeof versionsData !== "object") return null;
+
     return (
-        <Paper variant="outlined" sx={{height: 200, overflowY: 'auto'}}>
+        <Paper variant="outlined" sx={{ height: 200, overflowY: 'auto' }}>
             <List dense component="nav">
-                {Object.keys(versionsData).sort((a, b) => b.localeCompare(a, undefined, { numeric: true })).map(parent => {
-                    const children = versionsData[parent];
+                {Object.keys(versionsData)
+                  .sort((a, b) => b.localeCompare(a, undefined, { numeric: true }))
+                  .map(parent => {
+                    // Subversiones ordenadas ascendente
+                    const children = [...versionsData[parent]].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
                     const allChildrenSelected = children.every(child => selected.includes(child));
                     const isIndeterminate = children.some(child => selected.includes(child)) && !allChildrenSelected;
 
@@ -75,7 +81,7 @@ const VersionSelector = ({ versionsData, selected, onSelectionChange }) => {
                                     indeterminate={isIndeterminate}
                                     onChange={() => handleParentChange(parent, children)}
                                 />
-                                <ListItemText primary={parent} sx={{fontWeight: 'bold'}} />
+                                <ListItemText primary={parent} sx={{ fontWeight: 'bold' }} />
                                 <IconButton edge="end" onClick={() => handleParentClick(parent)}>
                                     {open[parent] ? <ExpandMoreIcon /> : <ChevronRightIcon />}
                                 </IconButton>
@@ -113,7 +119,9 @@ const DescriptionGenerator = ({ buildingBlockId }) => {
     const [creatorHistory, setCreatorHistory] = useState(['@Insanity21']);
     const [creator, setCreator] = useState('@Insanity21');
     const [musicUrls, setMusicUrls] = useState('');
+    const [errorMsg, setErrorMsg] = useState(null);
 
+    // Estructura de versiones principales y subversiones (más reciente primero)
     const versionsData = {
         '1.21': ['1.21.5', '1.21.4', '1.21.3', '1.21.2', '1.21.1'],
         '1.20': ['1.20.6', '1.20.5', '1.20.4', '1.20.3', '1.20.2', '1.20.1'],
@@ -130,10 +138,17 @@ const DescriptionGenerator = ({ buildingBlockId }) => {
     const handleGenerateDescription = async () => {
         setIsProcessing(true);
         setFinalDescription('');
+        setErrorMsg(null);
 
+        if (!introText || introText.trim() === "") {
+            setErrorMsg("La introducción del video no puede estar vacía.");
+            setIsProcessing(false);
+            return;
+        }
+
+        // Créditos musicales
         let musicSegment = '(Aquí irá la música)';
         const urlsArray = musicUrls.split('\n').filter(url => url.trim() !== '');
-
         if (urlsArray.length > 0) {
             try {
                 const response = await fetch('http://localhost:5000/extract_music_credits', {
@@ -145,20 +160,24 @@ const DescriptionGenerator = ({ buildingBlockId }) => {
                 if (!response.ok) throw new Error(data.error || 'Error del servidor');
                 musicSegment = data.musicSection;
             } catch (err) {
-                console.error("Error al obtener la música:", err);
+                setErrorMsg("Error al obtener la música: " + err.message);
                 musicSegment = `ERROR al obtener la música: ${err.message}`;
             }
         }
 
+        // Procesar lista de materiales
         let materialsListText = "(Sube un archivo para generar la lista de materiales)";
         if (materialsFile) {
             try {
                 const fileContent = await materialsFile.text();
                 const itemsMapResponse = await fetch('/items_map.csv');
+                if (!itemsMapResponse.ok) throw new Error("No se pudo cargar items_map.csv");
                 const itemsMapText = await itemsMapResponse.text();
                 const pyScriptResponse = await fetch('/generate_description_list.py');
+                if (!pyScriptResponse.ok) throw new Error("No se pudo cargar generate_description_list.py");
                 const pythonScript = await pyScriptResponse.text();
 
+                if (!window.loadPyodide) throw new Error("Pyodide no está disponible en window");
                 const pyodide = await window.loadPyodide();
                 await pyodide.runPythonAsync(pythonScript);
                 pyodide.globals.set("csv_string", fileContent);
@@ -166,17 +185,23 @@ const DescriptionGenerator = ({ buildingBlockId }) => {
                 pyodide.globals.set("building_block_id", buildingBlockId);
                 materialsListText = pyodide.runPython("format_materials_list(csv_string, items_map_string, building_block_id)");
             } catch (err) {
-                console.error("Error procesando la lista de materiales:", err);
+                setErrorMsg("Error procesando la lista de materiales: " + err.message);
                 materialsListText = "Error al generar la lista de materiales.";
             }
         }
 
-        const majorVersions = Object.keys(versionsData).filter(parent => versionsData[parent].every(child => selectedVersions.includes(child)));
-        const individualVersions = selectedVersions.filter(v => !majorVersions.some(p => versionsData[p].includes(v)) && !versionsData[v]);
-        const formattedVersions = [...new Set([...majorVersions, ...individualVersions])].sort((a, b) => b.localeCompare(a, undefined, { numeric: true })).join(' - ');
+        // Genera la lista de subversiones seleccionadas en orden ascendente
+        const allSubversions = Object.values(versionsData).flat();
+        const selectedSubversions = allSubversions
+            .filter(subv => selectedVersions.includes(subv))
+            .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+        const formattedVersions = selectedSubversions.join(' - ');
 
+        // Corregido: muestra ambas plataformas si ambas están seleccionadas
         let platformText = '🎮 Plataforma: ';
-        if (platforms.java) {
+        if (platforms.java && platforms.bedrock) {
+            platformText += 'Java ✅ - Bedrock ✅';
+        } else if (platforms.java) {
             platformText += 'Java ✅ - Bedrock ❌';
         } else if (platforms.bedrock) {
             platformText += 'Java ❌ - Bedrock ✅';
@@ -222,14 +247,18 @@ ____________________________________________________
             setCopyTooltipOpen(true);
             setTimeout(() => setCopyTooltipOpen(false), 2000);
         }).catch(err => {
-            console.error('Error al copiar al portapapeles', err);
+            setErrorMsg('Error al copiar al portapapeles: ' + err.message);
         });
     };
 
-
     return (
         <Box>
-            {/* Parte 1: Introducción */}
+            {errorMsg && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                    {errorMsg}
+                </Alert>
+            )}
+            {/* Introducción */}
             <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent', mb: 2 }}>
                 <Typography variant="h6">Introducción del Video</Typography>
                 <TextField
@@ -243,8 +272,7 @@ ____________________________________________________
                     sx={{ mt: 1 }}
                 />
             </Paper>
-
-            {/* Parte 2: Lista de Materiales */}
+            {/* Lista de Materiales */}
             <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent', mb: 2 }}>
                 <Typography variant="h6">Lista de Materiales</Typography>
                 <Box {...getRootProps()} sx={{ border: '2px dashed', borderColor: 'text.secondary', borderRadius: 2, p: 4, textAlign: 'center', cursor: 'pointer', my: 1 }}>
@@ -263,8 +291,7 @@ ____________________________________________________
                     )}
                 </Box>
             </Paper>
-
-            {/* Parte 3: Sobre La Granja */}
+            {/* Sobre La Granja */}
             <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent', mb: 2 }}>
                 <Typography variant="h6">Sobre La Granja</Typography>
                 <Box sx={{ display: 'flex', gap: 4, mt: 1 }}>
@@ -289,8 +316,7 @@ ____________________________________________________
                     </Box>
                 </Box>
             </Paper>
-
-            {/* CAMBIO: Sección de Música actualizada */}
+            {/* Música */}
             <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent', mb: 2 }}>
                 <Typography variant="h6">Música</Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
@@ -307,12 +333,10 @@ ____________________________________________________
                     placeholder="https://www.youtube.com/watch?v=...\nhttps://www.youtube.com/watch?v=..."
                 />
             </Paper>
-
             {/* Botón y Resultado */}
             <Button variant="contained" onClick={handleGenerateDescription} disabled={isProcessing} sx={{ my: 2 }}>
                 {isProcessing ? <CircularProgress size={24} /> : "Generar Descripción"}
             </Button>
-
             <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent', mb: 2 }}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="h6">Resultado Final</Typography>
