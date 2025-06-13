@@ -1,46 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Button, CircularProgress, Paper, Switch, FormControlLabel } from '@mui/material';
-import Papa from 'papaparse';
 import JSZip from 'jszip';
 import FileDropzone from './shared/FileDropzone';
 import EntitySelector from './shared/EntitySelector';
 import ErrorAlert from './shared/ErrorAlert';
-import PreviewGallery from './shared/PreviewGallery'; // Nuevo import
+import PreviewGallery from './shared/PreviewGallery';
+import useCSVMap from '../hooks/useCSVMap'; // Nuevo import
 
 const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTitle, imageSubtitle }) => {
+    // Usar el custom hook para cargar items y entidades
+    const { map: itemsMap, data: itemsData, error: itemsError } = useCSVMap('/items_map.csv', 'Name');
+    const { map: entitiesMap, data: entities, error: entitiesError } = useCSVMap('/entities_map.csv', 'Registry name');
+
     const [materialsFile, setMaterialsFile] = useState(null);
-    const [entities, setEntities] = useState([]);
-    const [itemsMap, setItemsMap] = useState(new Map());
-    const [entitiesMap, setEntitiesMap] = useState(new Map());
     const [showEntitiesSelector, setShowEntitiesSelector] = useState(false);
     const [selectedEntities, setSelectedEntities] = useState([]); // { entity, quantity }
     const [isGenerating, setIsGenerating] = useState(false);
     const [previewImages, setPreviewImages] = useState([]);
     const [errorMsg, setErrorMsg] = useState(null);
 
-    // Carga de mapas al montar el componente
+    // Manejo de errores de carga de CSVs
     useEffect(() => {
-        try {
-            Papa.parse('/items_map.csv', {
-                download: true,
-                header: true,
-                skipEmptyLines: true,
-                complete: (result) => setItemsMap(new Map(result.data.map(item => [item.Name, item])))
-            });
-            Papa.parse('/entities_map.csv', {
-                download: true,
-                header: true,
-                skipEmptyLines: true,
-                complete: (result) => {
-                    setEntities(result.data);
-                    setEntitiesMap(new Map(result.data.map(ent => [ent['Registry name'], ent])));
-                }
-            });
-        } catch (err) {
-            setErrorMsg("Error al cargar los archivos de mapeo de items/entidades.");
-            console.error(err);
-        }
-    }, []);
+      if (itemsError) setErrorMsg('Error al cargar items: ' + itemsError.message);
+      else if (entitiesError) setErrorMsg('Error al cargar entidades: ' + entitiesError.message);
+    }, [itemsError, entitiesError]);
 
     // Función principal para generar imágenes (descarga o preview)
     const generateImage = async (isDownload = false) => {
@@ -56,19 +39,24 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
                 await document.fonts.load('900 10px Poppins');
                 await document.fonts.load('600 10px Poppins');
                 await document.fonts.load('500 10px Poppins');
-            } catch (err) {
-                // Fuente opcional, no es crítico si falla
-            }
+            } catch (err) {}
             const materialsText = await materialsFile.text();
-            const parsed = Papa.parse(materialsText, { header: true, skipEmptyLines: true });
-            if (!parsed.data || !Array.isArray(parsed.data) || parsed.data.length === 0) {
+            // CSV de materiales a array de objetos
+            const lines = materialsText.split('\n');
+            const headers = lines[0].split(',').map(h => h.trim());
+            const data = lines.slice(1).map(line => {
+                const values = line.split(',').map(v => v.trim());
+                const obj = {};
+                headers.forEach((h, i) => obj[h] = values[i]);
+                return obj;
+            }).filter(obj => obj.Item && obj.Item !== '' && !isNaN(Number(obj.Total)));
+
+            if (!data || !Array.isArray(data) || data.length === 0) {
                 setErrorMsg("El archivo de materiales está vacío o mal formateado.");
                 setIsGenerating(false);
                 return;
             }
-            let combinedList = parsed.data
-                .filter(row => row.Item && row.Item.trim() !== '' && !isNaN(Number(row.Total)))
-                .map(mat => ({ ...mat, type: 'item' }));
+            let combinedList = data.map(mat => ({ ...mat, type: 'item' }));
 
             if (showEntitiesSelector && selectedEntities.length > 0) {
                 const entityData = selectedEntities.map(sel => ({
@@ -141,7 +129,7 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
         }
     };
 
-    // Función de renderizado de imagen individual (sin cambios)
+    // Función de renderizado de imagen individual (igual que antes)
     const drawSingleImage = async (pageItems, pageNum, totalPages, isDownload) => {
         const canvas = document.createElement('canvas');
         const [width, height] = (isDownload ? downloadResolution : '1280x720').split('x').map(Number);
@@ -153,9 +141,7 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
         const loadImage = (src) => new Promise((resolve) => {
             const img = new window.Image();
             img.onload = () => resolve(img);
-            img.onerror = () => {
-                resolve(null);
-            };
+            img.onerror = () => resolve(null);
             img.src = src;
         });
 
@@ -186,7 +172,6 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
         ctx.font = `600 ${35 * scale}px Poppins`;
         ctx.fillText(imageSubtitle.toUpperCase(), canvas.width / 2, 215 * scale);
 
-        // Layout de ítems (3 columnas, 6 filas por defecto)
         const columns = 3;
         const gridPadding = 100 * scale;
         const columnWidth = (canvas.width - (gridPadding * 2)) / columns;
@@ -271,7 +256,6 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
     return (
         <Box>
             <ErrorAlert message={errorMsg} onClose={() => setErrorMsg(null)} />
-
             {/* Paso 1: Cargar archivo de materiales */}
             <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent', mb: 2 }}>
                 <Typography variant="h6">1. Cargar Archivo</Typography>
@@ -306,7 +290,6 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
                         Descargar
                     </Button>
                 </Box>
-                {/* NUEVO: PreviewGallery reusable */}
                 <PreviewGallery images={previewImages} />
             </Paper>
         </Box>
