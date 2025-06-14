@@ -72,32 +72,49 @@ const Settings = ({ savedSettings, onSave }) => {
       {/* Configuración de Datapack */}
       <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent', mb: 3 }}>
         <Typography variant="h6" component="h2" gutterBottom>Datapack</Typography>
-        <TextField 
-          type="number" 
-          label="Pack Format" 
-          variant="outlined" 
-          value={localSettings.packFormat} 
-          onChange={(e) => handleChange('packFormat', Number(e.target.value))} 
+        <TextField
+          type="number"
+          label="Pack Format"
+          variant="outlined"
+          value={localSettings.packFormat}
+          onChange={(e) => handleChange('packFormat', Number(e.target.value))}
           fullWidth
         />
       </Paper>
       {/* Configuración de imagen de materiales */}
       <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent', mb: 3 }}>
         <Typography variant="h6" component="h2" gutterBottom>Imagen de Materiales</Typography>
-        <TextField 
-          label="Título Principal" 
-          variant="outlined" 
-          value={localSettings.imageTitle} 
-          onChange={(e) => handleChange('imageTitle', e.target.value)} 
-          fullWidth sx={{mb: 2}}
+        <TextField
+          label="Título Principal"
+          variant="outlined"
+          value={localSettings.imageTitle}
+          onChange={(e) => handleChange('imageTitle', e.target.value)}
+          fullWidth sx={{ mb: 2 }}
         />
-        <TextField 
-          label="Subtítulo" 
-          variant="outlined" 
-          value={localSettings.imageSubtitle} 
-          onChange={(e) => handleChange('imageSubtitle', e.target.value)} 
-          fullWidth sx={{mb: 2}}
+        <TextField
+          label="Subtítulo"
+          variant="outlined"
+          value={localSettings.imageSubtitle}
+          onChange={(e) => handleChange('imageSubtitle', e.target.value)}
+          fullWidth sx={{ mb: 2 }}
         />
+        <TextField
+          type="number"
+          label="Filas"
+          variant="outlined"
+          value={localSettings.gridRows || 6}
+          onChange={e => handleChange('gridRows', Number(e.target.value))}
+          fullWidth sx={{ mb: 2 }}
+        />
+        <TextField
+          type="number"
+          label="Columnas"
+          variant="outlined"
+          value={localSettings.gridCols || 3}
+          onChange={e => handleChange('gridCols', Number(e.target.value))}
+          fullWidth sx={{ mb: 2 }}
+        />
+
 
         {/* Autocomplete para seleccionar el bloque de construcción */}
         <Autocomplete
@@ -110,7 +127,7 @@ const Settings = ({ savedSettings, onSave }) => {
           )}
         />
 
-        <TextField 
+        <TextField
           label="Resolución de descarga"
           variant="outlined"
           value={localSettings.downloadResolution}
@@ -120,18 +137,18 @@ const Settings = ({ savedSettings, onSave }) => {
       </Paper>
 
       {/* Botones de acciones */}
-      <Paper elevation={0} sx={{p: 2, backgroundColor: 'transparent' }}>
+      <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent' }}>
         <Stack direction="row" spacing={2}>
-          <Button 
-            variant="contained" 
+          <Button
+            variant="contained"
             startIcon={<SaveIcon />}
             onClick={handleSave}
             disabled={!hasChanges}
           >
             Guardar Cambios
           </Button>
-          <Button 
-            variant="outlined" 
+          <Button
+            variant="outlined"
             startIcon={<RestoreIcon />}
             onClick={handleReset}
             disabled={!hasChanges}

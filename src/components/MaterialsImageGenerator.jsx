@@ -5,15 +5,22 @@ import JSZip from 'jszip';
 
 import FileDropzone from './shared/FileDropzone';
 import EntitySelector from './shared/EntitySelector';
-import { generateMaterialsImages } from '../utils/generateMaterialsImages'; // Nuevo helper
+import { generateMaterialsImages } from '../utils/generateMaterialsImages';
 
-const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTitle, imageSubtitle }) => {
+const MaterialsImageGenerator = ({
+  buildingBlockId,
+  downloadResolution,
+  imageTitle,
+  imageSubtitle,
+  gridRows,
+  gridCols
+}) => {
     const [materialsFile, setMaterialsFile] = useState(null);
     const [entities, setEntities] = useState([]);
     const [itemsMap, setItemsMap] = useState(new Map());
     const [entitiesMap, setEntitiesMap] = useState(new Map());
     const [showEntitiesSelector, setShowEntitiesSelector] = useState(false);
-    const [selectedEntities, setSelectedEntities] = useState([]); // { entity, quantity }
+    const [selectedEntities, setSelectedEntities] = useState([]);
     const [isGenerating, setIsGenerating] = useState(false);
     const [previewImages, setPreviewImages] = useState([]);
     const [errorMsg, setErrorMsg] = useState(null);
@@ -59,11 +66,9 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
                 await document.fonts.load('600 10px Poppins');
                 await document.fonts.load('500 10px Poppins');
             } catch (err) {
-                // No hacer nada si falla la carga de fuentes
                 console.warn('No se pudo cargar la fuente Poppins', err);
             }
 
-            // Procesar CSV de materiales y juntar entidades adicionales
             const materialsText = await materialsFile.text();
             const parsed = Papa.parse(materialsText, { header: true, skipEmptyLines: true });
             if (!parsed.data || !Array.isArray(parsed.data) || parsed.data.length === 0) {
@@ -75,7 +80,6 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
                 .filter(row => row.Item && row.Item.trim() !== '' && !isNaN(Number(row.Total)))
                 .map(mat => ({ ...mat, type: 'item' }));
 
-            // Incluir entidades si es necesario
             if (showEntitiesSelector && selectedEntities.length > 0) {
                 const entityData = selectedEntities.map(sel => ({
                     Item: sel.entity['Registry name'],
@@ -85,7 +89,6 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
                 combinedList.push(...entityData);
             }
 
-            // Siempre agregar bloques temporales al final
             combinedList.push({
                 Item: 'Bloques temporales',
                 Total: 64,
@@ -93,21 +96,23 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
                 imagePath: '/items/dirt.png'
             });
 
-            // ------ USO DEL HELPER PARA GENERAR IMÁGENES ------
+            const itemsPerPage = (gridRows || 6) * (gridCols || 3);
+
             const canvases = await generateMaterialsImages(
                 combinedList,
                 {
                     downloadResolution,
                     imageTitle,
                     imageSubtitle,
-                    itemsPerPage: 18,
-                    buildingBlockId
+                    itemsPerPage,
+                    buildingBlockId,
+                    gridRows,
+                    gridCols
                 },
                 itemsMap,
                 entitiesMap
             );
 
-            // ------ LÓGICA PARA DESCARGA O PREVIEW ------
             if (isDownload) {
                 if (canvases.length === 1) {
                     const link = document.createElement('a');
@@ -148,7 +153,6 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
                 </Alert>
             )}
 
-            {/* Paso 1: Cargar archivo de materiales */}
             <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent', mb: 2 }}>
                 <Typography variant="h6">1. Cargar Archivo</Typography>
                 <FileDropzone
@@ -158,7 +162,6 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
                   label="Arrastra o haz clic para subir el .csv de materiales"
                 />
             </Paper>
-            {/* Paso 2: Opciones adicionales de entidades */}
             <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent', mb: 2 }}>
                 <Typography variant="h6">2. Opciones Adicionales</Typography>
                 <FormControlLabel control={<Switch checked={showEntitiesSelector} onChange={(e) => setShowEntitiesSelector(e.target.checked)} />} label="Añadir Entidades" />
@@ -171,7 +174,6 @@ const MaterialsImageGenerator = ({ buildingBlockId, downloadResolution, imageTit
                   />
                 )}
             </Paper>
-            {/* Paso 3: Generar imagen y mostrar vistas previas */}
             <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent', mb: 2 }}>
                 <Typography variant="h6">3. Generar Imagen</Typography>
                 <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>

@@ -5,7 +5,9 @@ export async function generateMaterialsImages(materialsData, {
     imageTitle = 'MATERIALES',
     imageSubtitle = 'La cantidad puede variar ligeramente',
     itemsPerPage = 18,
-    buildingBlockId = null
+    buildingBlockId = null,
+    gridRows = 6,
+    gridCols = 3
 }, itemsMap, entitiesMap) {
     // Divide materiales en páginas
     const pages = [];
@@ -21,12 +23,10 @@ export async function generateMaterialsImages(materialsData, {
         img.src = src;
     });
 
-    // Dibuja cada página
     const generatedCanvases = [];
     for (let pageIndex = 0; pageIndex < pages.length; pageIndex++) {
         const pageItems = pages[pageIndex];
 
-        // --- Canvas y contexto ---
         const canvas = document.createElement('canvas');
         const [width, height] = downloadResolution.split('x').map(Number);
         canvas.width = width;
@@ -34,7 +34,6 @@ export async function generateMaterialsImages(materialsData, {
         const ctx = canvas.getContext('2d');
         const scale = canvas.width / 1920;
 
-        // --- Carga imágenes de ítems/entidades ---
         const imagePromises = pageItems.map(item => {
             if (item.type === 'custom') {
                 return loadImage(item.imagePath);
@@ -53,7 +52,7 @@ export async function generateMaterialsImages(materialsData, {
 
         const loadedImages = await Promise.all(imagePromises);
 
-        // --- Dibuja fondo y títulos ---
+        // Fondo y títulos
         ctx.beginPath();
         ctx.roundRect(0, 0, canvas.width, canvas.height, [20 * scale]);
         ctx.clip();
@@ -69,20 +68,22 @@ export async function generateMaterialsImages(materialsData, {
         ctx.font = `600 ${35 * scale}px Poppins`;
         ctx.fillText(imageSubtitle.toUpperCase(), canvas.width / 2, 215 * scale);
 
-        // --- Layout grid (igual que antes) ---
-        const columns = 3;
+        // Layout dinámico basado en filas y columnas
+        const columns = gridCols || 3;
+        const rows = gridRows || 6;
         const gridPadding = 100 * scale;
         const columnWidth = (canvas.width - (gridPadding * 2)) / columns;
+        const rowHeight = ((canvas.height - gridPadding) - 280 * scale) / rows;
         const startY = 280 * scale;
         const itemPadding = 30 * scale;
-        const itemBoxHeight = 100 * scale;
+        const itemBoxHeight = rowHeight - itemPadding;
 
         pageItems.forEach((item, index) => {
             const img = loadedImages[index];
             const col = index % columns;
             const row = Math.floor(index / columns);
             const x = gridPadding + (col * columnWidth);
-            const y = startY + (row * (itemBoxHeight + itemPadding));
+            const y = startY + (row * rowHeight);
 
             ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
             const iconBgSize = 80 * scale;
