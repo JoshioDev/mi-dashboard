@@ -1,33 +1,17 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { Box, Paper, Typography, Button, CircularProgress, TextField } from '@mui/material';
 import FileDropzone from './shared/FileDropzone';
 import { useSnackbar } from '../hooks/useSnackbar';
+import { usePyodide } from '../hooks/usePyodide';
 import { formatTimestampsWithPyodide } from '../utils/formatTimestampsWithPyodide';
 
 const TimestampsFormatter = () => {
     const { showSnackbar } = useSnackbar();
+    const { loadPyodide } = usePyodide();
 
     const [inputFile, setInputFile] = useState(null);
     const [outputText, setOutputText] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
-
-    // Mantiene instancia de Pyodide viva (sólo se carga una vez por sesión)
-    const pyodideRef = useRef(null);
-
-    // Cargar Pyodide si aún no está cargado
-    const loadPyodideIfNeeded = async () => {
-        if (!pyodideRef.current) {
-            try {
-                showSnackbar("Cargando motor Python...", "info");
-                pyodideRef.current = await window.loadPyodide();
-                showSnackbar("Motor Python listo.", "success");
-            } catch (error) {
-                showSnackbar("No se pudo cargar el motor Python en tu navegador.", "error");
-                throw error;
-            }
-        }
-        return pyodideRef.current;
-    };
 
     const handleFormatTimestamps = async () => {
         if (!inputFile) {
@@ -39,11 +23,16 @@ const TimestampsFormatter = () => {
         setOutputText('');
 
         try {
-            const pyodide = await loadPyodideIfNeeded();
             const fileContent = await inputFile.text();
-            const formatted = await formatTimestampsWithPyodide(fileContent, '/generate_timestamps.py', pyodide);
-
-            setOutputText(formatted);
+            // Obtén la instancia de Pyodide (solo se carga una vez)
+            const pyodide = await loadPyodide();
+            // Usa el helper para procesar y formatear los timestamps (cabecera incluida)
+            const result = await formatTimestampsWithPyodide(
+                fileContent,
+                '/generate_timestamps.py',
+                pyodide
+            );
+            setOutputText(result);
             showSnackbar("Timestamps generados correctamente.", "success");
         } catch (error) {
             showSnackbar(error.message, 'error');
