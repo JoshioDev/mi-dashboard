@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Typography, Button, CircularProgress, IconButton, Paper, TextField, Tooltip, FormGroup, FormControlLabel, Checkbox, Autocomplete, List, ListItem, ListItemText, Collapse, Alert } from '@mui/material';
+import React, { useState } from 'react';
+import { Box, Typography, Button, CircularProgress, IconButton, Paper, TextField, Tooltip, FormGroup, FormControlLabel, Checkbox, Autocomplete, List, ListItem, ListItemText, Collapse } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { useDropzone } from 'react-dropzone';
@@ -7,13 +7,16 @@ import UploadFileIcon from '@mui/icons-material/UploadFile';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import { generateDescriptionText } from '../utils/generateDescriptionText'; // NUEVO IMPORT
 
+import { generateDescriptionText } from '../utils/generateDescriptionText';
+import { useSnackbar } from '../hooks/useSnackbar';
+import { usePyodide } from '../hooks/usePyodide';
+import { formatMaterialsListWithPyodide } from '../utils/formatMaterialsListWithPyodide';
 
 const VersionSelector = ({ versionsData, selected, onSelectionChange }) => {
     const [open, setOpen] = useState({});
 
-    useEffect(() => {
+    React.useEffect(() => {
         const initiallyOpen = {};
         Object.keys(versionsData).forEach(parent => {
             if (versionsData[parent].some(child => selected.includes(child))) {
@@ -108,6 +111,9 @@ const VersionSelector = ({ versionsData, selected, onSelectionChange }) => {
 };
 
 const DescriptionGenerator = ({ buildingBlockId }) => {
+    const { showSnackbar } = useSnackbar();
+    const { loadPyodide } = usePyodide();
+
     const [introText, setIntroText] = useState("En este video te muestro como construir una granja de Botellas Ominosas para obtener el efecto de Mal Presagio para Minecraft 1.21.");
     const [materialsFile, setMaterialsFile] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -118,7 +124,6 @@ const DescriptionGenerator = ({ buildingBlockId }) => {
     const [creatorHistory, setCreatorHistory] = useState(['@Insanity21']);
     const [creator, setCreator] = useState('@Insanity21');
     const [musicUrls, setMusicUrls] = useState('');
-    const [errorMsg, setErrorMsg] = useState(null);
 
     const versionsData = {
         '1.21': ['1.21.5', '1.21.4', '1.21.3', '1.21.2', '1.21.1'],
@@ -136,15 +141,14 @@ const DescriptionGenerator = ({ buildingBlockId }) => {
     const handleGenerateDescription = async () => {
         setIsProcessing(true);
         setFinalDescription('');
-        setErrorMsg(null);
 
         if (!introText || introText.trim() === "") {
-            setErrorMsg("La introducción del video no puede estar vacía.");
+            showSnackbar("La introducción del video no puede estar vacía.", "error");
             setIsProcessing(false);
             return;
         }
 
-        // Créditos musicales
+        // --- Créditos musicales ---
         let musicSegment = '(Aquí irá la música)';
         const urlsArray = musicUrls.split('\n').filter(url => url.trim() !== '');
         if (urlsArray.length > 0) {
@@ -158,43 +162,38 @@ const DescriptionGenerator = ({ buildingBlockId }) => {
                 if (!response.ok) throw new Error(data.error || 'Error del servidor');
                 musicSegment = data.musicSection;
             } catch (err) {
-                setErrorMsg("Error al obtener la música: " + err.message);
+                showSnackbar("Error al obtener la música: " + err.message, "error");
                 musicSegment = `ERROR al obtener la música: ${err.message}`;
             }
         }
 
-        // Procesar lista de materiales
+        // --- Lista de materiales (usando el helper y el hook) ---
         let materialsListText = "(Sube un archivo para generar la lista de materiales)";
         if (materialsFile) {
             try {
+                const pyodide = await loadPyodide();
                 const fileContent = await materialsFile.text();
-                const itemsMapResponse = await fetch('/items_map.csv');
-                if (!itemsMapResponse.ok) throw new Error("No se pudo cargar items_map.csv");
-                const itemsMapText = await itemsMapResponse.text();
-                const pyScriptResponse = await fetch('/generate_description_list.py');
-                if (!pyScriptResponse.ok) throw new Error("No se pudo cargar generate_description_list.py");
-                const pythonScript = await pyScriptResponse.text();
-
-                if (!window.loadPyodide) throw new Error("Pyodide no está disponible en window");
-                const pyodide = await window.loadPyodide();
-                await pyodide.runPythonAsync(pythonScript);
-                pyodide.globals.set("csv_string", fileContent);
-                pyodide.globals.set("items_map_string", itemsMapText);
-                pyodide.globals.set("building_block_id", buildingBlockId);
-                materialsListText = pyodide.runPython("format_materials_list(csv_string, items_map_string, building_block_id)");
+                const itemsMapText = await fetch('/items_map.csv').then(r => r.text());
+                materialsListText = await formatMaterialsListWithPyodide(
+                    fileContent,
+                    itemsMapText,
+                    buildingBlockId,
+                    '/generate_description_list.py',
+                    pyodide
+                );
             } catch (err) {
-                setErrorMsg("Error procesando la lista de materiales: " + err.message);
+                showSnackbar("Error procesando la lista de materiales: " + err.message, "error");
                 materialsListText = "Error al generar la lista de materiales.";
             }
         }
 
-        // --- NUEVO: lógica de subversiones seleccionadas en orden ascendente
+        // --- Subversiones seleccionadas en orden ascendente ---
         const allSubversions = Object.values(versionsData).flat();
         const selectedSubversions = allSubversions
             .filter(subv => selectedVersions.includes(subv))
             .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
 
-        // --- LLAMADA AL HELPER CENTRALIZADO ---
+        // --- Armado final con el helper centralizado ---
         const finalText = generateDescriptionText({
             introText,
             materialsListText,
@@ -202,31 +201,29 @@ const DescriptionGenerator = ({ buildingBlockId }) => {
             platforms,
             creator,
             musicSegment
-            // Si tienes timestampsText, pásalo aquí también
         });
 
         setFinalDescription(finalText);
         if (creator && !creatorHistory.includes(creator)) setCreatorHistory(prev => [creator, ...prev]);
         setIsProcessing(false);
+        showSnackbar("Descripción generada correctamente.", "success");
     };
 
     const handleCopyToClipboard = () => {
         if (!finalDescription) return;
-        navigator.clipboard.writeText(finalDescription).then(() => {
-            setCopyTooltipOpen(true);
-            setTimeout(() => setCopyTooltipOpen(false), 2000);
-        }).catch(err => {
-            setErrorMsg('Error al copiar al portapapeles: ' + err.message);
-        });
+        navigator.clipboard.writeText(finalDescription)
+            .then(() => {
+                setCopyTooltipOpen(true);
+                showSnackbar("¡Copiado!", "success");
+                setTimeout(() => setCopyTooltipOpen(false), 1500);
+            })
+            .catch(err => {
+                showSnackbar("No se pudo copiar al portapapeles: " + err.message, 'error');
+            });
     };
 
     return (
         <Box>
-            {errorMsg && (
-                <Alert severity="error" sx={{ mb: 2 }}>
-                    {errorMsg}
-                </Alert>
-            )}
             {/* Introducción */}
             <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent', mb: 2 }}>
                 <Typography variant="h6">Introducción del Video</Typography>
@@ -310,7 +307,11 @@ const DescriptionGenerator = ({ buildingBlockId }) => {
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="h6">Resultado Final</Typography>
                     <Tooltip open={copyTooltipOpen} onClose={() => setCopyTooltipOpen(false)} title="¡Copiado!" placement="top">
-                        <IconButton onClick={handleCopyToClipboard} disabled={!finalDescription}><ContentCopyIcon /></IconButton>
+                        <span>
+                            <IconButton onClick={handleCopyToClipboard} disabled={!finalDescription}>
+                                <ContentCopyIcon />
+                            </IconButton>
+                        </span>
                     </Tooltip>
                 </Box>
                 <TextField
