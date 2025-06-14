@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Box, Paper, Typography, Button, CircularProgress, TextField } from '@mui/material';
+import { Box, Paper, Typography, Button, CircularProgress, TextField, IconButton, Tooltip } from '@mui/material';
 import FileDropzone from './shared/FileDropzone';
 import { useSnackbar } from '../hooks/useSnackbar';
 import { usePyodide } from '../hooks/usePyodide';
 import { formatTimestampsWithPyodide } from '../utils/formatTimestampsWithPyodide';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
 const TimestampsFormatter = () => {
     const { showSnackbar } = useSnackbar();
@@ -12,6 +13,7 @@ const TimestampsFormatter = () => {
     const [inputFile, setInputFile] = useState(null);
     const [outputText, setOutputText] = useState('');
     const [isProcessing, setIsProcessing] = useState(false);
+    const [copyTooltipOpen, setCopyTooltipOpen] = useState(false);
 
     const handleFormatTimestamps = async () => {
         if (!inputFile) {
@@ -24,9 +26,7 @@ const TimestampsFormatter = () => {
 
         try {
             const fileContent = await inputFile.text();
-            // Obtén la instancia de Pyodide (solo se carga una vez)
             const pyodide = await loadPyodide();
-            // Usa el helper para procesar y formatear los timestamps (cabecera incluida)
             const result = await formatTimestampsWithPyodide(
                 fileContent,
                 '/generate_timestamps.py',
@@ -39,6 +39,19 @@ const TimestampsFormatter = () => {
         } finally {
             setIsProcessing(false);
         }
+    };
+
+    const handleCopyToClipboard = () => {
+        if (!outputText) return;
+        navigator.clipboard.writeText(outputText)
+            .then(() => {
+                setCopyTooltipOpen(true);
+                showSnackbar("¡Copiado!", "success");
+                setTimeout(() => setCopyTooltipOpen(false), 1500);
+            })
+            .catch(err => {
+                showSnackbar("No se pudo copiar al portapapeles: " + err.message, 'error');
+            });
     };
 
     return (
@@ -62,8 +75,17 @@ const TimestampsFormatter = () => {
                 >
                     {isProcessing ? <CircularProgress size={24} /> : "Formatear Timestamps"}
                 </Button>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="h6">Resultado</Typography>
+                    <Tooltip open={copyTooltipOpen} onClose={() => setCopyTooltipOpen(false)} title="¡Copiado!" placement="top">
+                        <span>
+                            <IconButton onClick={handleCopyToClipboard} disabled={!outputText}>
+                                <ContentCopyIcon />
+                            </IconButton>
+                        </span>
+                    </Tooltip>
+                </Box>
                 <TextField
-                    label="Resultado"
                     multiline
                     fullWidth
                     rows={10}
