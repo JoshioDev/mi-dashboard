@@ -7,7 +7,8 @@ export async function generateMaterialsImages(materialsData, {
     itemsPerPage = 18,
     buildingBlockId = null,
     gridRows = 6,
-    gridCols = 3
+    gridCols = 3,
+    showGridDebug = false
 }, itemsMap, entitiesMap) {
     // Divide materiales en páginas
     const pages = [];
@@ -84,6 +85,16 @@ export async function generateMaterialsImages(materialsData, {
             const row = Math.floor(index / columns);
             const x = gridPadding + (col * columnWidth);
             const y = startY + (row * rowHeight);
+
+            // --- DEBUG GRID ---
+            if (showGridDebug) {
+                ctx.save();
+                ctx.strokeStyle = '#44FF44';
+                ctx.lineWidth = 3 * scale;
+                ctx.setLineDash([10 * scale, 8 * scale]);
+                ctx.strokeRect(x, y, columnWidth, rowHeight);
+                ctx.restore();
+            }
 
             ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
             const iconBgSize = 80 * scale;

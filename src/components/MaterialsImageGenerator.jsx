@@ -13,7 +13,8 @@ const MaterialsImageGenerator = ({
   imageTitle,
   imageSubtitle,
   gridRows,
-  gridCols
+  gridCols,
+  showGridDebug
 }) => {
     const [materialsFile, setMaterialsFile] = useState(null);
     const [entities, setEntities] = useState([]);
@@ -25,7 +26,6 @@ const MaterialsImageGenerator = ({
     const [previewImages, setPreviewImages] = useState([]);
     const [errorMsg, setErrorMsg] = useState(null);
 
-    // Cargar mapas de items y entidades al montar
     useEffect(() => {
         try {
             Papa.parse('/items_map.csv', {
@@ -60,7 +60,6 @@ const MaterialsImageGenerator = ({
         if (!isDownload) setPreviewImages([]);
 
         try {
-            // Cargar fuentes si están disponibles (no bloquear si falla)
             try {
                 await document.fonts.load('900 10px Poppins');
                 await document.fonts.load('600 10px Poppins');
@@ -107,7 +106,8 @@ const MaterialsImageGenerator = ({
                     itemsPerPage,
                     buildingBlockId,
                     gridRows,
-                    gridCols
+                    gridCols,
+                    showGridDebug: !!showGridDebug
                 },
                 itemsMap,
                 entitiesMap

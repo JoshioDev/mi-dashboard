@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Box, Typography, Paper, TextField, Button, Stack, Alert } from '@mui/material';
+import { FormControlLabel, Switch as MuiSwitch } from '@mui/material';
 import SaveIcon from '@mui/icons-material/Save';
 import RestoreIcon from '@mui/icons-material/Restore';
 import Autocomplete from '@mui/material/Autocomplete';
@@ -114,8 +115,7 @@ const Settings = ({ savedSettings, onSave }) => {
           onChange={e => handleChange('gridCols', Number(e.target.value))}
           fullWidth sx={{ mb: 2 }}
         />
-
-
+        
         {/* Autocomplete para seleccionar el bloque de construcción */}
         <Autocomplete
           options={items}
@@ -133,6 +133,16 @@ const Settings = ({ savedSettings, onSave }) => {
           value={localSettings.downloadResolution}
           onChange={(e) => handleChange('downloadResolution', e.target.value)}
           fullWidth sx={{ mb: 2 }}
+        />
+        <FormControlLabel
+          control={
+            <MuiSwitch
+              checked={!!localSettings.showGridDebug}
+              onChange={e => handleChange('showGridDebug', e.target.checked)}
+            />
+          }
+          label="Mostrar límites de grid en la imagen (Debug)"
+          sx={{ mb: 2 }}
         />
       </Paper>
 
