@@ -6,8 +6,9 @@ import UploadFileIcon from '@mui/icons-material/UploadFile';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import ErrorAlert from './shared/ErrorAlert';         // Nuevo import
-import useCSVMap from '../hooks/useCSVMap';           // Nuevo import
+import ErrorAlert from './shared/ErrorAlert';
+import useCSVMap from '../hooks/useCSVMap';
+import generateDescription from '../utils/generateDescription'; // Nuevo import
 
 const VersionSelector = ({ versionsData, selected, onSelectionChange }) => {
     const [open, setOpen] = useState({});
