@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Box, Typography, Button, CircularProgress, IconButton, Paper, TextField, Tooltip, FormGroup, FormControlLabel, Checkbox, Autocomplete, List, ListItem, ListItemText, Collapse } from '@mui/material';
+import { Box, Typography, Button, CircularProgress, IconButton, Paper, TextField, Tooltip, FormGroup, FormControlLabel, Checkbox, Autocomplete, List, ListItem, ListItemText, Collapse, Alert } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import { useDropzone } from 'react-dropzone';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import ErrorAlert from './shared/ErrorAlert';
-import useCSVMap from '../hooks/useCSVMap';
-import generateDescription from '../utils/generateDescription'; // Nuevo import
+import { generateDescriptionText } from '../utils/generateDescriptionText'; // NUEVO IMPORT
+
 
 const VersionSelector = ({ versionsData, selected, onSelectionChange }) => {
     const [open, setOpen] = useState({});
@@ -108,9 +108,6 @@ const VersionSelector = ({ versionsData, selected, onSelectionChange }) => {
 };
 
 const DescriptionGenerator = ({ buildingBlockId }) => {
-    // Custom hook para cargar items (para validación y mapeo, si lo necesitas en el futuro)
-    const { map: itemsMap, data: itemsData, error: itemsError } = useCSVMap('/items_map.csv', 'Name');
-
     const [introText, setIntroText] = useState("En este video te muestro como construir una granja de Botellas Ominosas para obtener el efecto de Mal Presagio para Minecraft 1.21.");
     const [materialsFile, setMaterialsFile] = useState(null);
     const [isProcessing, setIsProcessing] = useState(false);
@@ -123,11 +120,6 @@ const DescriptionGenerator = ({ buildingBlockId }) => {
     const [musicUrls, setMusicUrls] = useState('');
     const [errorMsg, setErrorMsg] = useState(null);
 
-    // Manejo de error de carga de items
-    useEffect(() => {
-        if (itemsError) setErrorMsg('Error al cargar items: ' + itemsError.message);
-    }, [itemsError]);
-
     const versionsData = {
         '1.21': ['1.21.5', '1.21.4', '1.21.3', '1.21.2', '1.21.1'],
         '1.20': ['1.20.6', '1.20.5', '1.20.4', '1.20.3', '1.20.2', '1.20.1'],
@@ -136,11 +128,10 @@ const DescriptionGenerator = ({ buildingBlockId }) => {
         '1.17': ['1.17.1']
     };
 
-    // Manejo de archivos (dropzone)
-    const handleFileDrop = (e) => {
-        const files = e.target.files || (e.dataTransfer && e.dataTransfer.files);
-        if (files && files.length > 0) setMaterialsFile(files[0]);
-    };
+    const { getRootProps, getInputProps } = useDropzone({
+        onDrop: (acceptedFiles) => setMaterialsFile(acceptedFiles[0]),
+        accept: { 'text/csv': ['.csv'] }
+    });
 
     const handleGenerateDescription = async () => {
         setIsProcessing(true);
@@ -153,6 +144,7 @@ const DescriptionGenerator = ({ buildingBlockId }) => {
             return;
         }
 
+        // Créditos musicales
         let musicSegment = '(Aquí irá la música)';
         const urlsArray = musicUrls.split('\n').filter(url => url.trim() !== '');
         if (urlsArray.length > 0) {
@@ -171,6 +163,7 @@ const DescriptionGenerator = ({ buildingBlockId }) => {
             }
         }
 
+        // Procesar lista de materiales
         let materialsListText = "(Sube un archivo para generar la lista de materiales)";
         if (materialsFile) {
             try {
@@ -195,51 +188,24 @@ const DescriptionGenerator = ({ buildingBlockId }) => {
             }
         }
 
+        // --- NUEVO: lógica de subversiones seleccionadas en orden ascendente
         const allSubversions = Object.values(versionsData).flat();
         const selectedSubversions = allSubversions
             .filter(subv => selectedVersions.includes(subv))
             .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-        const formattedVersions = selectedSubversions.join(' - ');
 
-        let platformText = '🎮 Plataforma: ';
-        if (platforms.java && platforms.bedrock) {
-            platformText += 'Java ✅ - Bedrock ✅';
-        } else if (platforms.java) {
-            platformText += 'Java ✅ - Bedrock ❌';
-        } else if (platforms.bedrock) {
-            platformText += 'Java ❌ - Bedrock ✅';
-        } else {
-            platformText += 'No especificado';
-        }
+        // --- LLAMADA AL HELPER CENTRALIZADO ---
+        const finalText = generateDescriptionText({
+            introText,
+            materialsListText,
+            versions: selectedSubversions,
+            platforms,
+            creator,
+            musicSegment
+            // Si tienes timestampsText, pásalo aquí también
+        });
 
-        const final_text = `
-${introText}
-
-⛏ Lista de materiales:
-${materialsListText}
-
-❰ Sobre La Granja ❱
-📟 Versiones: ${formattedVersions || 'No especificadas'}
-${platformText}
-🤖 Creador original: ${creator || 'No especificado'}
-
-❰ Redes Sociales ❱
-🐦 Twitter ➞    https://x.com/iNordap 
-🔴 Twitch ➞    https://www.twitch.tv/iNordap 
-🎵 Tik tok ➞    https://www.tiktok.com/@iNordap
-📧 Email ➞ contactoinordap@gmail.com
-
-¿Quieres jugar Minecraft con tus amigos? Te recomiendo alquilar un servidor en ZAP-Hosting, además apoyas al canal simplemente dando clic en el siguiente enlace. Usa el código "iNordap-a-8942" para un 20% de descuento ➞ https://zap-hosting.com/inordap
-
-❰ Musica ❱
-____________________________________________________
-
-${musicSegment}
-
-____________________________________________________
-        `.trim();
-
-        setFinalDescription(final_text);
+        setFinalDescription(finalText);
         if (creator && !creatorHistory.includes(creator)) setCreatorHistory(prev => [creator, ...prev]);
         setIsProcessing(false);
     };
@@ -256,8 +222,11 @@ ____________________________________________________
 
     return (
         <Box>
-            {/* Alerta de error reutilizable */}
-            <ErrorAlert message={errorMsg} onClose={() => setErrorMsg(null)} />
+            {errorMsg && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                    {errorMsg}
+                </Alert>
+            )}
             {/* Introducción */}
             <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent', mb: 2 }}>
                 <Typography variant="h6">Introducción del Video</Typography>
@@ -275,34 +244,13 @@ ____________________________________________________
             {/* Lista de Materiales */}
             <Paper elevation={0} sx={{ p: 2, backgroundColor: 'transparent', mb: 2 }}>
                 <Typography variant="h6">Lista de Materiales</Typography>
-                <Box
-                    sx={{
-                        border: '2px dashed',
-                        borderColor: 'text.secondary',
-                        borderRadius: 2,
-                        p: 4,
-                        textAlign: 'center',
-                        cursor: 'pointer',
-                        my: 1
-                    }}
-                    onDrop={handleFileDrop}
-                    onDragOver={e => e.preventDefault()}
-                    onClick={() => document.getElementById('materials-file-input').click()}
-                >
-                    <input
-                        id="materials-file-input"
-                        type="file"
-                        accept=".csv"
-                        style={{ display: 'none' }}
-                        onChange={handleFileDrop}
-                    />
+                <Box {...getRootProps()} sx={{ border: '2px dashed', borderColor: 'text.secondary', borderRadius: 2, p: 4, textAlign: 'center', cursor: 'pointer', my: 1 }}>
+                    <input {...getInputProps()} />
                     {materialsFile ? (
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <CheckCircleOutlineIcon color="success" />
                             <Typography>{materialsFile.name}</Typography>
-                            <IconButton onClick={e => { e.stopPropagation(); setMaterialsFile(null); }}>
-                                <DeleteIcon />
-                            </IconButton>
+                            <IconButton onClick={(e) => { e.stopPropagation(); setMaterialsFile(null); }}><DeleteIcon /></IconButton>
                         </Box>
                     ) : (
                         <Box>
