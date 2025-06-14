@@ -136,37 +136,29 @@ export async function generateMaterialsImages(materialsData, {
                 if (mapEntry?.ItemID === buildingBlockId) name = 'Bloques de construcción';
             }
 
-            // --- Texto multilinea helper ---
-            const wrapText = (context, text, x, y, maxWidth, lineHeight) => {
-                const words = text.split(' '); let line = '';
-                for(let n = 0; n < words.length; n++) {
-                    const testLine = line + words[n] + ' ';
-                    if (context.measureText(testLine).width > maxWidth && n > 0) {
-                        context.fillText(line, x, y);
-                        line = words[n] + ' ';
-                        y += lineHeight;
-                    } else { line = testLine; }
-                }
-                context.fillText(line, x, y);
-            };
+            // --- Cálculo del área segura para el nombre ---
+            const cantidadBoxX = x + columnWidth - (itemPadding * 1.5) - 40 * scale; // inicio de la caja de cantidad
             const textX = x + iconBgSize + (25 * scale);
-            const textWidth = columnWidth - iconBgSize - (50 * scale);
+            const margenSeguridad = 4 * scale;
+            const textWidth = cantidadBoxX - textX - margenSeguridad;
+
+            // Dibuja el texto con el ancho correcto
             ctx.fillStyle = '#ffffff';
             ctx.font = `600 ${35 * scale}px Poppins`;
             ctx.textAlign = 'left';
             wrapText(ctx, name, textX, y + (38 * scale), textWidth, 38 * scale);
 
-            // --- DEBUG: Limite del nombre/texto ---
+            // --- DEBUG: Limite del nombre/texto (azul) ---
             if (showGridDebug) {
                 ctx.save();
-                ctx.strokeStyle = '#00BFFF';
+                ctx.strokeStyle = '#00BFFF'; // Azul
                 ctx.lineWidth = 2 * scale;
                 ctx.setLineDash([5 * scale, 5 * scale]);
                 ctx.strokeRect(
                     textX,
-                    y + (38 * scale) - (32 * scale), // Ajuste vertical para incluir el texto
+                    y + (itemBoxHeight - iconSize) / 2,
                     textWidth,
-                    40 * scale
+                    iconSize
                 );
                 ctx.restore();
             }
@@ -178,7 +170,7 @@ export async function generateMaterialsImages(materialsData, {
                 ctx.lineWidth = 2 * scale;
                 ctx.setLineDash([5 * scale, 5 * scale]);
                 ctx.strokeRect(
-                    x + columnWidth - (itemPadding * 1.5) - 40 * scale, // Aproximación del box de cantidad
+                    x + columnWidth - (itemPadding * 1.5) - 40 * scale,
                     y + itemBoxHeight - (30 * scale),
                     60 * scale, 32 * scale
                 );
@@ -193,7 +185,7 @@ export async function generateMaterialsImages(materialsData, {
             }
         });
 
-        // --- Opcional: Leyenda colores debug (arriba a la derecha) ---
+        // Leyenda colores debug (arriba a la derecha)
         if (showGridDebug) {
             ctx.save();
             ctx.font = `600 ${18 * scale}px Poppins`;
@@ -219,6 +211,23 @@ export async function generateMaterialsImages(materialsData, {
         }
 
         generatedCanvases.push(canvas);
+    }
+
+    // --- Texto multilinea helper (fuera del for) ---
+    function wrapText(context, text, x, y, maxWidth, lineHeight) {
+        const words = text.split(' ');
+        let line = '';
+        for (let n = 0; n < words.length; n++) {
+            const testLine = line + words[n] + ' ';
+            if (context.measureText(testLine).width > maxWidth && n > 0) {
+                context.fillText(line, x, y);
+                line = words[n] + ' ';
+                y += lineHeight;
+            } else {
+                line = testLine;
+            }
+        }
+        context.fillText(line, x, y);
     }
 
     return generatedCanvases;
