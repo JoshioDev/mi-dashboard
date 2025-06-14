@@ -86,7 +86,7 @@ export async function generateMaterialsImages(materialsData, {
             const x = gridPadding + (col * columnWidth);
             const y = startY + (row * rowHeight);
 
-            // --- DEBUG GRID ---
+            // --- DEBUG: Limite de la celda del grid ---
             if (showGridDebug) {
                 ctx.save();
                 ctx.strokeStyle = '#44FF44';
@@ -102,9 +102,21 @@ export async function generateMaterialsImages(materialsData, {
             ctx.roundRect(x, y + (itemBoxHeight - iconBgSize) / 2, iconBgSize, iconBgSize, [12 * scale]);
             ctx.fill();
 
+            // --- DEBUG: Limite del ícono ---
             const iconSize = 56 * scale;
+            const iconX = x + (iconBgSize - iconSize) / 2;
+            const iconY = y + (itemBoxHeight - iconSize) / 2;
+            if (showGridDebug) {
+                ctx.save();
+                ctx.strokeStyle = '#FFD700';
+                ctx.lineWidth = 2 * scale;
+                ctx.setLineDash([5 * scale, 5 * scale]);
+                ctx.strokeRect(iconX, iconY, iconSize, iconSize);
+                ctx.restore();
+            }
+
             if (img) {
-                ctx.drawImage(img, x + (iconBgSize - iconSize) / 2, y + (itemBoxHeight - iconSize) / 2, iconSize, iconSize);
+                ctx.drawImage(img, iconX, iconY, iconSize, iconSize);
             } else {
                 ctx.font = `900 ${24 * scale}px Poppins`;
                 ctx.fillStyle = '#AAA';
@@ -124,7 +136,7 @@ export async function generateMaterialsImages(materialsData, {
                 if (mapEntry?.ItemID === buildingBlockId) name = 'Bloques de construcción';
             }
 
-            // Texto multilinea helper
+            // --- Texto multilinea helper ---
             const wrapText = (context, text, x, y, maxWidth, lineHeight) => {
                 const words = text.split(' '); let line = '';
                 for(let n = 0; n < words.length; n++) {
@@ -144,6 +156,35 @@ export async function generateMaterialsImages(materialsData, {
             ctx.textAlign = 'left';
             wrapText(ctx, name, textX, y + (38 * scale), textWidth, 38 * scale);
 
+            // --- DEBUG: Limite del nombre/texto ---
+            if (showGridDebug) {
+                ctx.save();
+                ctx.strokeStyle = '#00BFFF';
+                ctx.lineWidth = 2 * scale;
+                ctx.setLineDash([5 * scale, 5 * scale]);
+                ctx.strokeRect(
+                    textX,
+                    y + (38 * scale) - (32 * scale), // Ajuste vertical para incluir el texto
+                    textWidth,
+                    40 * scale
+                );
+                ctx.restore();
+            }
+
+            // --- DEBUG: Limite del campo de cantidad ---
+            if (showGridDebug && item.type !== 'custom') {
+                ctx.save();
+                ctx.strokeStyle = '#FF4444';
+                ctx.lineWidth = 2 * scale;
+                ctx.setLineDash([5 * scale, 5 * scale]);
+                ctx.strokeRect(
+                    x + columnWidth - (itemPadding * 1.5) - 40 * scale, // Aproximación del box de cantidad
+                    y + itemBoxHeight - (30 * scale),
+                    60 * scale, 32 * scale
+                );
+                ctx.restore();
+            }
+
             if (item.type !== 'custom') {
                 ctx.fillStyle = '#94A3B8';
                 ctx.font = `500 ${30 * scale}px Poppins`;
@@ -151,6 +192,21 @@ export async function generateMaterialsImages(materialsData, {
                 ctx.fillText(`x${item.Total}`, x + columnWidth - (itemPadding * 1.5), y + itemBoxHeight - (10 * scale));
             }
         });
+
+        // --- Opcional: Leyenda colores debug (arriba a la derecha) ---
+        if (showGridDebug) {
+            ctx.save();
+            ctx.font = `600 ${18 * scale}px Poppins`;
+            ctx.fillStyle = '#44FF44';
+            ctx.fillText('Verde: grid', canvas.width - 320 * scale, 40 * scale);
+            ctx.fillStyle = '#FFD700';
+            ctx.fillText('Amarillo: ícono', canvas.width - 320 * scale, 60 * scale);
+            ctx.fillStyle = '#00BFFF';
+            ctx.fillText('Azul: nombre', canvas.width - 320 * scale, 80 * scale);
+            ctx.fillStyle = '#FF4444';
+            ctx.fillText('Rojo: cantidad', canvas.width - 320 * scale, 100 * scale);
+            ctx.restore();
+        }
 
         ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
         ctx.font = `500 ${22 * scale}px Poppins`;
