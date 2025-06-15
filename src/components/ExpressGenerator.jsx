@@ -17,17 +17,24 @@ const versionsData = {
 
 const ExpressGenerator = () => {
   const [activeStep, setActiveStep] = useState(0);
+
+  // Paso 1: Materiales
   const [materialsFile, setMaterialsFile] = useState(null);
   const [materialsData, setMaterialsData] = useState(null);
 
+  // Paso 2: Descripción
   const [selectedVersions, setSelectedVersions] = useState([]);
   const [platforms, setPlatforms] = useState({ java: false, bedrock: false });
   const [introText, setIntroText] = useState('');
   const [creator, setCreator] = useState('');
   const [musicUrls, setMusicUrls] = useState('');
 
+  // Paso 3: Timestamps
+  const [timestampsFile, setTimestampsFile] = useState(null);
+
   const { showSnackbar } = useSnackbar();
 
+  // Paso 1: Procesa el archivo y valida columnas requeridas
   const handleFileChange = async (file) => {
     setMaterialsFile(file);
     if (!file) {
@@ -55,6 +62,7 @@ const ExpressGenerator = () => {
     }
   };
 
+  // Avanzar pasos
   const handleNext = () => setActiveStep((prev) => prev + 1);
 
   return (
@@ -189,7 +197,35 @@ const ExpressGenerator = () => {
           </Button>
         </Paper>
       )}
-      {/* Los siguientes pasos irán aquí... */}
+
+      {/* Paso 3: Subir timestamps */}
+      {activeStep === 2 && (
+        <Paper sx={{ p: 4 }}>
+          <Typography variant="h5" fontWeight={700} sx={{ mb: 1 }}>
+            Sube tu archivo de timestamps
+          </Typography>
+          <Typography color="text.secondary" sx={{ mb: 3 }}>
+            Arrastra o selecciona el archivo de timestamps (puede ser CSV o TXT) que quieres añadir al final de la descripción.
+          </Typography>
+          <FileDropzone
+            file={timestampsFile}
+            onFileChange={setTimestampsFile}
+            onRemove={() => setTimestampsFile(null)}
+            label="Arrastra o haz clic para subir el archivo de timestamps"
+          />
+          <Button
+            variant="contained"
+            color="primary"
+            sx={{ mt: 3 }}
+            disabled={!timestampsFile}
+            onClick={handleNext}
+          >
+            Siguiente
+          </Button>
+        </Paper>
+      )}
+
+      {/* Aquí irá el resumen/final (paso 4) */}
     </Box>
   );
 };
