@@ -1,62 +1,117 @@
-# 🛠️ Mi Dashboard para Creadores de Contenido
+# 🛠️ Minecraft Dashboard WebApp
 
-Esta es una webapp creada para facilitar la generación de recursos visuales y textuales necesarios para la publicación de videos en YouTube, especialmente para creadores que trabajan con Minecraft.
-
-## 🚀 Características Principales
-
-* 🎒 **Generador de Datapacks**: Crea datapacks personalizados con un solo clic.
-* 🧱 **Imagen de Materiales**: Genera automáticamente imágenes de los materiales usados en un proyecto, listas para insertar en el video.
-* 📝 **Generador de Descripciones**: Crea descripciones completas para YouTube con créditos de música y enlaces.
-* ⏱️ **Formatter de Timestamps**: Convierte listas de tiempo en formato editable para la descripción.
-* ⚡ **Modo Express**: Para quienes quieren resultados rápidos con mínima configuración.
-* 👀 **Visualizador**: Herramienta experimental para revisar resultados antes de exportarlos.
+WebApp modular para automatizar la generación de datapacks, descripciones de YouTube, imágenes de materiales y más para la comunidad de Minecraft.
 
 ## 📁 Estructura del Proyecto
 
 ```
 mi-dashboard/
-├── backend/                # Servidor Flask
-│   └── app.py
-├── public/                # Recursos públicos como imágenes y scripts
-│   ├── entities/
-│   ├── items/
-│   ├── items_map.csv
+├── backend/
+│   └── app.py                     # Servidor Flask para créditos de música
+│
+├── public/
+│   ├── entities/                  # Imágenes .png de entidades
+│   ├── items/                     # Imágenes .png de ítems
 │   ├── entities_map.csv
+│   ├── items_map.csv
 │   ├── generate_datapack.py
 │   ├── generate_description_list.py
-│   └── generate_timestamps.py
+│   ├── generate_timestamps.py
+│
 ├── src/
-│   ├── components/        # Componentes React
-│   ├── App.jsx            # Componente principal
-│   └── main.jsx           # Entrada principal
+│   ├── components/
+│   │   ├── DatapackGenerator.jsx
+│   │   ├── DescriptionGenerator.jsx
+│   │   ├── ExpressGenerator.jsx
+│   │   ├── MaterialsImageGenerator.jsx
+│   │   ├── Placeholder.jsx
+│   │   ├── Settings.jsx
+│   │   ├── TimestampsFormatter.jsx
+│   │   └── shared/
+│   │        ├── EntitySelector.jsx
+│   │        ├── ErrorAlert.jsx
+│   │        ├── FileDropzone.jsx
+│   │        └── PreviewGallery.jsx
+│   ├── providers/
+│   │   └── SnackbarProvider.jsx
+│   ├── hooks/
+│   │   ├── useCSVMap.js
+│   │   ├── usePyodide.js
+│   │   └── useSnackbar.js
+│   ├── utils/
+│   │   ├── generateMaterialsImages.js
+│   │   ├── generateDatapackWithPyodide.js
+│   │   ├── formatMaterialsListWithPyodide.js
+│   │   ├── formatTimestampsWithPyodide.js
+│   │   └── generateDescriptionText.js
+│   ├── App.css
+│   ├── App.jsx
+│   ├── index.css
+│   ├── main.jsx
+│
+├── .gitignore
 ├── index.html
 ├── package.json
 └── vite.config.js
 ```
 
-## ⚙️ Tecnologías Usadas
+---
 
-* **Frontend**: React + MUI (Material UI) + Vite
-* **Backend**: Flask (para créditos musicales)
-* **Procesamiento CSV**: papaparse
-* **Compresión**: JSZip
+## ✨ Descripción de carpetas principales
 
-## 🔧 Cómo Ejecutar el Proyecto
+* **backend/**: Scripts Python/Flask para integración y automatizaciones (por ejemplo, créditos de música).
+* **public/**: Archivos estáticos, imágenes, scripts Python usados por Pyodide y archivos de mapeo.
+* **src/components/**: Componentes principales de React y subcomponentes compartidos.
 
-```bash
-# Instalar dependencias
-npm install
-
-# Ejecutar frontend
-npm run dev
-
-# Ejecutar backend (Flask)
-cd backend
-python app.py
-```
-
-> Asegúrate de tener Python 3 y Node.js instalados.
+  * **shared/**: Componentes reusables y visuales (drag & drop, previews, alerts, entity selector).
+* **src/providers/**: Proveedores de contexto global (ej: SnackbarProvider).
+* **src/hooks/**: Hooks personalizados (Pyodide, snackbar, carga de mapas CSV).
+* **src/utils/**: Funciones helper y lógica de generación, formateo y procesamiento (JS).
+* **src/**: Entrypoint de la app, estilos globales, configuración principal.
 
 ---
 
-¡Gracias por usar esta herramienta y apoyar la creación de contenido de calidad!
+## 🚀 ¿Cómo correr el proyecto?
+
+1. Instala dependencias:
+
+   ```bash
+   npm install
+   ```
+
+2. Inicia el backend (opcional, solo si usas Flask):
+
+   ```bash
+   cd backend
+   python app.py
+   ```
+
+3. Inicia la app web:
+
+   ```bash
+   npm run dev
+   ```
+
+---
+
+## 🧩 Stack Tecnológico
+
+* **React** + **Vite**
+* **Material UI** (MUI)
+* **Pyodide** (Python en el navegador)
+* **PapaParse** (parseo de CSV)
+* **JSZip** (descarga de archivos en ZIP)
+* **Python scripts** para lógica especial (generación de datapacks, descripciones, etc.)
+
+---
+
+## 📋 Notas
+
+* Los scripts Python en `public/` son cargados y ejecutados en el navegador mediante Pyodide.
+* Los mapas de items y entidades deben mantenerse sincronizados para funcionamiento correcto de la app.
+* Para notificaciones globales, la app utiliza un SnackbarProvider con hooks personalizados.
+
+---
+
+¿Necesitas más detalles sobre algún directorio o cómo agregar nuevos módulos?
+¡Solo abre un issue o contacta al desarrollador principal!
