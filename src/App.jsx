@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Box, CssBaseline, Drawer, List, Typography, Divider, ListItem, ListItemButton, 
   ListItemIcon, ListItemText, Switch, createTheme, ThemeProvider, Avatar, 
-  IconButton, Snackbar, Alert 
+  IconButton, Snackbar, Alert
 } from '@mui/material';
 
 // Iconos para el menú
@@ -27,6 +27,9 @@ import TimestampsFormatter from '/src/components/TimestampsFormatter.jsx';
 import DescriptionGenerator from '/src/components/DescriptionGenerator.jsx';
 import ExpressGenerator from '/src/components/ExpressGenerator.jsx';
 
+// Hook personalizado para cargar mapas CSV
+import useCSVMap from '/src/hooks/useCSVMap.js'; // Ajusta el path si es necesario
+
 const expandedDrawerWidth = 260;
 const collapsedDrawerWidth = 88;
 
@@ -48,13 +51,10 @@ export default function App() {
         imageSubtitle: 'La cantidad puede variar ligeramente'
       };
       if (savedSettings) {
-        // Intentar merge de settings guardados y defaults
         return { ...defaultSettings, ...JSON.parse(savedSettings) };
       }
       return defaultSettings;
     } catch (error) {
-      // Manejo de errores al cargar configuración corrupta
-      console.error("Error al leer la configuración local:", error);
       return {
         packFormat: 71,
         buildingBlockId: 'smooth_stone',
@@ -73,13 +73,7 @@ export default function App() {
     localStorage.setItem('app-theme-mode', mode); 
   }, [mode]);
 
-  // Cambia el estado del sidebar (expandido/colapsado)
-  const handleSidebarToggle = () => setIsSidebarOpen(!isSidebarOpen);
-
-  // Cambia el modo de color
-  const toggleColorMode = () => setMode(prev => prev === 'light' ? 'dark' : 'light');
-
-  // Tema de la app personalizado usando MUI ThemeProvider
+    // Tema de la app personalizado usando MUI ThemeProvider
   const theme = useMemo(() => createTheme({
     palette: {
       mode,
@@ -113,6 +107,42 @@ export default function App() {
     }
   }), [mode]);
 
+  // Carga los mapas CSV usando el hook personalizado
+  const { map: itemsMap, error: errorItems } = useCSVMap('/items_map.csv', 'Name');
+  const { map: entitiesMap, error: errorEntities } = useCSVMap('/entities_map.csv', 'Registry name');
+
+  // Loader global mientras los mapas no estén listos
+  if (!itemsMap.size || !entitiesMap.size) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Box sx={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Typography>Cargando archivos de mapeo...</Typography>
+        </Box>
+      </ThemeProvider>
+    );
+  }
+  if (errorItems || errorEntities) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Box sx={{ width: '100vw', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <Alert severity="error">
+            Error cargando archivos de mapeo.
+          </Alert>
+        </Box>
+      </ThemeProvider>
+    );
+  }
+
+  // Cambia el estado del sidebar (expandido/colapsado)
+  const handleSidebarToggle = () => setIsSidebarOpen(!isSidebarOpen);
+
+  // Cambia el modo de color
+  const toggleColorMode = () => setMode(prev => prev === 'light' ? 'dark' : 'light');
+
+
+
   // Menú lateral: orden y secciones
   const menuItems = [
     { text: 'Home', icon: <HomeIcon /> },
@@ -128,8 +158,12 @@ export default function App() {
   // Contenido renderizado según sección activa (caso extremo: fallback Placeholder)
   const sectionContent = {
     Home: <Placeholder title="Home" />,
-    Express: <ExpressGenerator settings={settings} />, 
-    Materiales: <MaterialsImageGenerator {...settings} />,
+    Express: <ExpressGenerator 
+      settings={settings} 
+      itemsMap={itemsMap}
+      entitiesMap={entitiesMap}
+    />, 
+    Materiales: <MaterialsImageGenerator {...settings} itemsMap={itemsMap} entitiesMap={entitiesMap} />,
     Datapack: <DatapackGenerator packFormat={settings.packFormat} />,
     Descripción: <DescriptionGenerator buildingBlockId={settings.buildingBlockId} />,
     Timestamps: <TimestampsFormatter />,
@@ -140,7 +174,6 @@ export default function App() {
         setSettings(newSettings);
         setSnackbarOpen(true);
       } catch(error) {
-        // Caso extremo: error al guardar configuración
         console.error("Error al guardar la configuración:", error);
         alert("No se pudo guardar la configuración. Revisa los permisos de tu navegador.");
       }
@@ -188,7 +221,6 @@ export default function App() {
     </Box>
   );
 
-  // Render principal del componente
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
